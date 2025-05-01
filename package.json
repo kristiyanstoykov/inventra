@@ -20,11 +20,14 @@
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "drizzle-orm": "0.43.1",
+    "eslint-config-prettier": "^10.1.2",
+    "eslint-plugin-prettier": "^5.2.6",
     "ioredis": "5.6.1",
     "lucide-react": "0.503.0",
     "mysql2": "3.4.3",
     "next": "15.3.1",
     "pg": "8.15.1",
+    "prettier": "^3.5.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "7.56.1",
@@ -38,10 +41,12 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "drizzle-kit": "^0.30.3",
-    "eslint": "^9.0.0",
+    "eslint": "^9.25.1",
     "eslint-config-next": "15.1.6",
+    "globals": "^16.0.0",
     "postcss": "^8.0.0",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.31.1"
   }
 }

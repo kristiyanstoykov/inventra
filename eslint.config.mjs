@@ -1,16 +1,33 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
+import prettierPlugin from 'eslint-plugin-prettier';
+import prettierConfig from 'eslint-config-prettier';
+import { defineConfig } from 'eslint/config';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+export default defineConfig([
+  {
+    files: ['**/*.{js,jsx,ts,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        ecmaVersion: 2020,
+        sourceType: 'module',
+        project: './tsconfig.json',
+      },
+      globals: {
+        ...globals.browser,
+      },
+    },
+    plugins: {
+      prettier: prettierPlugin,
+    },
+    rules: {
+      'prettier/prettier': 'error', // Treat Prettier formatting issues as ESLint errors
+    },
+  },
 
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+  // TypeScript ESLint recommended rules
+  ...tseslint.configs.recommended,
 
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
-];
-
-export default eslintConfig;
+  // Disable conflicting ESLint rules that Prettier handles
+  prettierConfig,
+]);
