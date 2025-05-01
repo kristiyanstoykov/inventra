@@ -1,5 +1,5 @@
-import { SignUpForm } from "@/auth/nextjs/components/SignUpForm"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { SignUpForm } from '@/auth/nextjs/components/SignUpForm';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function SignUp() {
   return (
@@ -13,5 +13,5 @@ export default function SignUp() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
