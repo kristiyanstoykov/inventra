@@ -4,8 +4,6 @@
 .vscode
 # prettier
 .prettierrc
-# eslint
-eslint.config.mjs
 
 # dependencies
 /node_modules
