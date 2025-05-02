@@ -1,52 +1,28 @@
-import { relations } from 'drizzle-orm';
-import { pgEnum, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { mysqlTable, datetime, mysqlEnum, int, text, varchar } from 'drizzle-orm/mysql-core';
 
 export const userRoles = ['admin', 'user'] as const;
 export type UserRole = (typeof userRoles)[number];
-export const userRoleEnum = pgEnum('user_roles', userRoles);
+export function userRoleEnum() {
+  return mysqlEnum('user_roles', userRoles);
+}
 
-export const UserTable = pgTable('users', {
-  id: uuid().primaryKey().defaultRandom(),
-  name: text().notNull(),
-  email: text().notNull().unique(),
-  password: text(),
-  salt: text(),
+export const UserTable = mysqlTable('users', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  password: text('password'),
+  salt: text('salt'),
   role: userRoleEnum().notNull().default('user'),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true })
+  createdAt: datetime('created_at')
     .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`)
+    .$onUpdateFn(() => sql`CURRENT_TIMESTAMP`),
 });
 
-export const userRelations = relations(UserTable, ({ many }) => ({
-  oAuthAccounts: many(UserOAuthAccountTable),
-}));
-
-export const oAuthProviders = ['discord', 'github'] as const;
-export type OAuthProvider = (typeof oAuthProviders)[number];
-export const oAuthProviderEnum = pgEnum('oauth_provides', oAuthProviders);
-
-export const UserOAuthAccountTable = pgTable(
-  'user_oauth_accounts',
-  {
-    userId: uuid()
-      .notNull()
-      .references(() => UserTable.id, { onDelete: 'cascade' }),
-    provider: oAuthProviderEnum().notNull(),
-    providerAccountId: text().notNull().unique(),
-    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp({ withTimezone: true })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
-  },
-  (t) => [primaryKey({ columns: [t.providerAccountId, t.provider] })]
-);
-
-export const userOauthAccountRelationships = relations(UserOAuthAccountTable, ({ one }) => ({
-  user: one(UserTable, {
-    fields: [UserOAuthAccountTable.userId],
-    references: [UserTable.id],
-  }),
-}));
+export const users = {
+  users: UserTable,
+};
