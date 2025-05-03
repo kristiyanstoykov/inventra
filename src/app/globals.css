@@ -8,6 +8,12 @@ body {
 
 @layer base {
   :root {
+    --content-max-width: 1200px;
+    --content-max-width-sm: 640px;
+    --content-max-width-md: 768px;
+    --content-max-width-lg: 1024px;
+    --content-max-width-xl: 1344px;
+
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;

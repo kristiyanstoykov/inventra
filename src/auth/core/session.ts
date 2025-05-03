@@ -1,18 +1,20 @@
+import { eq } from 'drizzle-orm';
+import { db } from '@/drizzle/db';
+import { SessionTable } from '@/drizzle/schema';
 import { userRoles } from '@/drizzle/schema';
 import { z } from 'zod';
 import crypto from 'crypto';
-import { redisClient } from '@/redis/redis';
 
-// Seven days in seconds
 const SESSION_EXPIRATION_SECONDS = 60 * 60 * 24 * 7;
 const COOKIE_SESSION_KEY = 'session-id';
 
 const sessionSchema = z.object({
-  id: z.string(),
+  id: z.number(),
   role: z.enum(userRoles),
 });
 
 type UserSession = z.infer<typeof sessionSchema>;
+
 export type Cookies = {
   set: (
     key: string,
@@ -28,54 +30,80 @@ export type Cookies = {
   delete: (key: string) => void;
 };
 
-export function getUserFromSession(cookies: Pick<Cookies, 'get'>) {
-  const sessionId = cookies.get(COOKIE_SESSION_KEY)?.value;
-  if (sessionId == null) return null;
+export async function getUserFromSession(cookies: Pick<Cookies, 'get'>) {
+  const sessionToken = cookies.get(COOKIE_SESSION_KEY)?.value;
+  if (!sessionToken) return null;
 
-  return getUserSessionById(sessionId);
+  const session = await getSessionByToken(sessionToken);
+  if (!session || new Date(session.expiresAt) < new Date()) {
+    return null;
+  }
+
+  return {
+    id: session.userId,
+    role: session.role,
+  } satisfies UserSession;
+}
+
+export async function createUserSession(
+  user: UserSession,
+  cookies: Pick<Cookies, 'set'>,
+  ip: string | null = null,
+  userAgent: string | null = null
+) {
+  const sessionToken = crypto.randomUUID();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + SESSION_EXPIRATION_SECONDS * 1000);
+
+  await db.insert(SessionTable).values({
+    tokenHash: sessionToken,
+    userId: user.id,
+    role: user.role,
+    expiresAt,
+    ip,
+    userAgent,
+  });
+
+  setCookie(sessionToken, cookies);
 }
 
 export async function updateUserSessionData(user: UserSession, cookies: Pick<Cookies, 'get'>) {
-  const sessionId = cookies.get(COOKIE_SESSION_KEY)?.value;
-  if (sessionId == null) return null;
+  const sessionToken = cookies.get(COOKIE_SESSION_KEY)?.value;
+  if (!sessionToken) return;
 
-  await redisClient.set(`session:${sessionId}`, sessionSchema.parse(user), {
-    ex: SESSION_EXPIRATION_SECONDS,
-  });
-}
+  const session = await getSessionByToken(sessionToken);
+  if (!session) return;
 
-export async function createUserSession(user: UserSession, cookies: Pick<Cookies, 'set'>) {
-  const sessionId = crypto.randomBytes(512).toString('hex').normalize();
-  await redisClient.set(`session:${sessionId}`, sessionSchema.parse(user), {
-    ex: SESSION_EXPIRATION_SECONDS,
-  });
-
-  setCookie(sessionId, cookies);
+  await db.update(SessionTable).set({ role: user.role }).where(eq(SessionTable.id, session.id));
 }
 
 export async function updateUserSessionExpiration(cookies: Pick<Cookies, 'get' | 'set'>) {
-  const sessionId = cookies.get(COOKIE_SESSION_KEY)?.value;
-  if (sessionId == null) return null;
+  const sessionToken = cookies.get(COOKIE_SESSION_KEY)?.value;
+  if (!sessionToken) return;
 
-  const user = await getUserSessionById(sessionId);
-  if (user == null) return;
+  const session = await getSessionByToken(sessionToken);
+  if (!session || new Date(session.expiresAt) < new Date()) return;
 
-  await redisClient.set(`session:${sessionId}`, user, {
-    ex: SESSION_EXPIRATION_SECONDS,
-  });
-  setCookie(sessionId, cookies);
+  const newExpires = new Date(Date.now() + SESSION_EXPIRATION_SECONDS * 1000);
+
+  await db
+    .update(SessionTable)
+    .set({ expiresAt: newExpires })
+    .where(eq(SessionTable.tokenHash, sessionToken));
+
+  setCookie(sessionToken, cookies);
 }
 
 export async function removeUserFromSession(cookies: Pick<Cookies, 'get' | 'delete'>) {
-  const sessionId = cookies.get(COOKIE_SESSION_KEY)?.value;
-  if (sessionId == null) return null;
+  const sessionToken = cookies.get(COOKIE_SESSION_KEY)?.value;
+  if (!sessionToken) return;
 
-  await redisClient.del(`session:${sessionId}`);
+  await db.delete(SessionTable).where(eq(SessionTable.tokenHash, sessionToken));
   cookies.delete(COOKIE_SESSION_KEY);
 }
 
-function setCookie(sessionId: string, cookies: Pick<Cookies, 'set'>) {
-  cookies.set(COOKIE_SESSION_KEY, sessionId, {
+function setCookie(token: string, cookies: Pick<Cookies, 'set'>) {
+  cookies.set(COOKIE_SESSION_KEY, token, {
     secure: true,
     httpOnly: true,
     sameSite: 'lax',
@@ -83,10 +111,12 @@ function setCookie(sessionId: string, cookies: Pick<Cookies, 'set'>) {
   });
 }
 
-async function getUserSessionById(sessionId: string) {
-  const rawUser = await redisClient.get(`session:${sessionId}`);
+async function getSessionByToken(token: string) {
+  const result = await db
+    .select()
+    .from(SessionTable)
+    .where(eq(SessionTable.tokenHash, token))
+    .limit(1);
 
-  const { success, data: user } = sessionSchema.safeParse(rawUser);
-
-  return success ? user : null;
+  return result[0] ?? null;
 }

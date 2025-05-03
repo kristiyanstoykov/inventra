@@ -15,7 +15,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { signUpSchema } from '../schemas';
-import Link from 'next/link';
 
 export function SignUpForm() {
   const [error, setError] = useState<string>();
@@ -76,9 +75,6 @@ export function SignUpForm() {
           )}
         />
         <div className="flex gap-4 justify-end">
-          <Button asChild variant="link">
-            <Link href="/sign-in">Sign In</Link>
-          </Button>
           <Button type="submit">Sign Up</Button>
         </div>
       </form>

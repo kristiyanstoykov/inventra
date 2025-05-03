@@ -8,6 +8,41 @@
       "when": 1746195779547,
       "tag": "0000_violet_pixie",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1746259061235,
+      "tag": "0001_great_daredevil",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1746264746740,
+      "tag": "0002_flawless_warstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1746264832147,
+      "tag": "0003_breezy_ikaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1746264888940,
+      "tag": "0004_sloppy_penance",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1746264931873,
+      "tag": "0005_clever_jasper_sitwell",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` MODIFY COLUMN `ip` varchar(64);

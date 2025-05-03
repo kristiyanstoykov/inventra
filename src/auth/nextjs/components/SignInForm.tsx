@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { signInSchema } from '../schemas';
-import Link from 'next/link';
+import { getIpAndUserAgent } from '@/lib/utils';
 
 export function SignInForm() {
   const [error, setError] = useState<string>();
@@ -27,6 +27,10 @@ export function SignInForm() {
   });
 
   async function onSubmit(data: z.infer<typeof signInSchema>) {
+    const { ip, userAgent } = await getIpAndUserAgent();
+    console.log('User ip:', ip);
+    console.log('User Agent:', userAgent);
+
     const error = await signIn(data);
     setError(error);
   }
@@ -62,9 +66,6 @@ export function SignInForm() {
           )}
         />
         <div className="flex gap-4 justify-end">
-          <Button asChild variant="link">
-            <Link href="/sign-up">Sign Up</Link>
-          </Button>
           <Button type="submit">Sign In</Button>
         </div>
       </form>

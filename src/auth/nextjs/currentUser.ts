@@ -46,7 +46,7 @@ async function _getCurrentUser({ withFullUser = false, redirectIfNotFound = fals
 
 export const getCurrentUser = cache(_getCurrentUser);
 
-function getUserFromDb(id: string) {
+function getUserFromDb(id: number) {
   return db.query.UserTable.findFirst({
     columns: { id: true, email: true, role: true, name: true },
     where: eq(UserTable.id, id),
