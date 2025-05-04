@@ -4,8 +4,8 @@ import { ThemeToggleButton } from './ui/themeToggleButton';
 
 const Header: React.FC = () => {
   return (
-    <header className="flex items-center py-2 px-5 bg-background border-b border-border transition-colors">
-      <div className="flex items-center justify-between w-[var(--content-max-width-xl)] mx-auto">
+    <header className="flex items-center border-b border-border bg-[hsl(var(--header-background))] py-2 px-5 transition-colors">
+      <div className="flex w-[var(--content-max-width-xl)] items-center justify-between mx-auto">
         <div className="flex items-center">
           <Image
             src="/inventra-logo.png"
@@ -15,7 +15,7 @@ const Header: React.FC = () => {
             priority
             style={{ height: 'auto', width: 'auto' }}
           />
-          <h1 className="ml-2 text-lg font-bold" style={{ color: '#E67B28' }}>
+          <h1 className="ml-2 text-lg font-bold text-[hsl(28_95%_53%)] dark:text-[hsl(28_95%_53%)]">
             Inventra
           </h1>
         </div>
