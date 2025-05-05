@@ -5,7 +5,7 @@ import { ThemeToggleButton } from './ui/themeToggleButton';
 const Header: React.FC = () => {
   return (
     <header className="flex items-center border-b border-border bg-[hsl(var(--header-background))] py-2 px-5 transition-colors">
-      <div className="flex w-[var(--content-max-width-xl)] items-center justify-between mx-auto">
+      <div className="flex items-center justify-between w-full">
         <div className="flex items-center">
           <Image
             src="/inventra-logo.png"
@@ -19,7 +19,9 @@ const Header: React.FC = () => {
             Inventra
           </h1>
         </div>
-        <ThemeToggleButton />
+        <div className="ml-auto">
+          <ThemeToggleButton />
+        </div>
       </div>
     </header>
   );
