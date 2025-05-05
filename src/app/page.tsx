@@ -40,7 +40,9 @@ export default async function HomePage() {
       ) : (
         <Card className="max-w-[500px] mt-4">
           <CardHeader>
-            <CardTitle>User: {fullUser.name}</CardTitle>
+            <CardTitle>
+              User: {fullUser.firstName} {fullUser.lastName}
+            </CardTitle>
             <CardDescription>Role: {fullUser.role}</CardDescription>
           </CardHeader>
           <CardFooter className="flex gap-4">

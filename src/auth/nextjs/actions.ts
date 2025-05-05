@@ -60,6 +60,7 @@ export async function signUp(unsafeData: z.infer<typeof signUpSchema>) {
     const salt = generateSalt();
     const hashedPassword = await hashPassword(data.password, salt);
 
+    // TODO: Create a function for inserting new user to database.
     const resultId = await db
       .insert(UserTable)
       .values({
