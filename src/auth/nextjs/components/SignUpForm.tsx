@@ -20,7 +20,8 @@ export function SignUpForm() {
   const [error, setError] = useState<string>();
   const form = useForm<z.infer<typeof signUpSchema>>({
     defaultValues: {
-      name: '',
+      firstName: '',
+      lastName: '',
       email: '',
       password: '',
     },
@@ -37,7 +38,20 @@ export function SignUpForm() {
         {error && <p className="text-destructive">{error}</p>}
         <FormField
           control={form.control}
-          name="name"
+          name="firstName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl>
+                <Input type="text" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="lastName"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Name</FormLabel>

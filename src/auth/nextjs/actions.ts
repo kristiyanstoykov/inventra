@@ -1,7 +1,6 @@
 'use server';
 
 import { z } from 'zod';
-import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { signInSchema, signUpSchema } from './schemas';
 import { db } from '@/drizzle/db';
@@ -64,7 +63,8 @@ export async function signUp(unsafeData: z.infer<typeof signUpSchema>) {
     const resultId = await db
       .insert(UserTable)
       .values({
-        name: data.name,
+        firstName: data.firstName,
+        lastName: data.lastName,
         email: data.email,
         password: hashedPassword,
         salt,
