@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Header from '@/components/Header';
+import { ThemeScript } from '@/lib/themeScript';
 
 export const metadata: Metadata = {
   title: 'Create Next App',
@@ -14,6 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
+      <head>
+        <ThemeScript />
+      </head>
       <body className="">
         <Header />
         {children}

@@ -108,22 +108,89 @@ export const WarehouseTable = mysqlTable('warehouses', {
 export const ProductTable = mysqlTable('products', {
   id: int('id').autoincrement().primaryKey().notNull(),
   name: varchar('name', { length: 255 }).notNull(),
-  sku: varchar('sku', { length: 255 }),
+  sku: varchar('sku', { length: 255 }).unique(),
+  sn: varchar('sn', { length: 255 }), // serial number
   price: decimal('price', { precision: 10, scale: 2 }).notNull().default('0.00'),
-  isService: boolean('is_service').notNull().default(false),
+  salePrice: decimal('sale_price', { precision: 10, scale: 2 }),
+  deliveryPrice: decimal('delivery_price', { precision: 10, scale: 2 }),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).default('0.00'),
+  brandId: int('brand_id').references(() => ProductBrandTable.id),
   createdAt: datetime('created_at')
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`)
+    .$onUpdateFn(() => sql`CURRENT_TIMESTAMP`),
 });
 
-/** ========== Product Attributes (Meta Table) ========== **/
+/** ========== Attributes ========== **/
+export const AttributeTable = mysqlTable('attributes', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  value: varchar('value', { length: 255 }).notNull(),
+  unit: varchar('unit', { length: 64 }),
+});
+
+/** ========== Product_Attributes (Pivot Table) ========== **/
 export const ProductAttributeTable = mysqlTable('product_attributes', {
   id: int('id').autoincrement().primaryKey().notNull(),
   productId: int('product_id')
     .notNull()
     .references(() => ProductTable.id),
+  attributeId: int('attribute_id')
+    .notNull()
+    .references(() => AttributeTable.id),
+});
+
+/** ========== Product_Meta ========== **/
+export const ProductMetaTable = mysqlTable('product_meta', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  productId: int('product_id')
+    .notNull()
+    .references(() => ProductTable.id),
+  metaKey: varchar('meta_key', { length: 255 }).notNull(),
+  metaValue: text('meta_value'),
+});
+
+/** ========== ProductBrandTable ========== **/
+export const ProductBrandTable = mysqlTable('product_brands', {
+  id: int('id').autoincrement().primaryKey().notNull(),
   name: varchar('name', { length: 255 }).notNull(),
-  value: varchar('value', { length: 255 }).notNull(),
+  logoUrl: varchar('logo_url', { length: 512 }),
+  website: varchar('website', { length: 255 }),
+  createdAt: datetime('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`)
+    .$onUpdateFn(() => sql`CURRENT_TIMESTAMP`),
+});
+
+/** ========== ProductCategoryTable ========== **/
+export const ProductCategoryTable = mysqlTable('product_cat', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  slug: varchar('slug', { length: 255 }).notNull(),
+  createdAt: datetime('created_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at')
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`)
+    .$onUpdateFn(() => sql`CURRENT_TIMESTAMP`),
+});
+
+/** ========== product_category pivot ========== **/
+export const ProductCategory = mysqlTable('products_categories', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  productId: int('product_id')
+    .notNull()
+    .references(() => ProductTable.id),
+  categoryId: int('category_id')
+    .notNull()
+    .references(() => ProductCategoryTable.id),
 });
 
 /** ========== Stock ========== **/
@@ -138,23 +205,13 @@ export const StockTable = mysqlTable('stock', {
   quantity: int('quantity').notNull().default(0),
 });
 
-/** ========== Clients ========== **/
-export const ClientTable = mysqlTable('clients', {
-  id: int('id').autoincrement().primaryKey().notNull(),
-  name: varchar('name', { length: 255 }).notNull(),
-  email: varchar('email', { length: 255 }),
-  phone: varchar('phone', { length: 50 }),
-  isCompany: boolean('is_company').notNull().default(false),
-  vatNumber: varchar('vat_number', { length: 64 }), // or 'bulstat'
-});
-
 /** ========== Orders ========== **/
 export const OrderTable = mysqlTable('orders', {
   id: int('id').autoincrement().primaryKey().notNull(),
   warehouseId: int('warehouse_id')
     .notNull()
     .references(() => WarehouseTable.id),
-  clientId: int('client_id').references(() => ClientTable.id),
+  clientId: int('client_id').references(() => UserTable.id),
   status: varchar('status', { length: 50 }).notNull().default('pending'),
   createdAt: datetime('created_at')
     .notNull()
@@ -198,9 +255,12 @@ export const schema = {
   warehouses: WarehouseTable,
   products: ProductTable,
   productAttributes: ProductAttributeTable,
+  productBrands: ProductBrandTable,
+  productCategories: ProductCategoryTable,
+  productCategory: ProductCategory,
+  productMeta: ProductMetaTable,
   stock: StockTable,
   orders: OrderTable,
   orderItems: OrderItemTable,
-  clients: ClientTable,
   invites: InviteTable,
 };

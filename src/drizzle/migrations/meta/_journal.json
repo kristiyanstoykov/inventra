@@ -50,6 +50,20 @@
       "when": 1746452789695,
       "tag": "0006_military_penance",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1746538005580,
+      "tag": "0007_first_christian_walker",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1746544116937,
+      "tag": "0008_handy_felicia_hardy",
+      "breakpoints": true
     }
   ]
 }

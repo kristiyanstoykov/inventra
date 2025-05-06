@@ -7,34 +7,24 @@ import { MoonIcon, SunIcon } from 'lucide-react';
 export function ThemeToggleButton() {
   const [isDark, setIsDark] = useState(false);
 
-  // Initial load – apply theme from localStorage or system preference
   useEffect(() => {
     const stored = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const shouldUseDark = stored === 'dark' || (!stored && prefersDark);
 
-    if (shouldUseDark) {
-      document.documentElement.classList.add('dark');
-      setIsDark(true);
-    } else {
-      document.documentElement.classList.remove('dark');
-      setIsDark(false);
-    }
+    document.documentElement.classList.toggle('dark', shouldUseDark);
+    setIsDark(shouldUseDark);
   }, []);
 
   const toggleTheme = () => {
     const html = document.documentElement;
     const isCurrentlyDark = html.classList.contains('dark');
+    const newTheme = isCurrentlyDark ? 'light' : 'dark';
 
-    if (isCurrentlyDark) {
-      html.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      setIsDark(false);
-    } else {
-      html.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-      setIsDark(true);
-    }
+    html.classList.toggle('dark');
+    localStorage.setItem('theme', newTheme);
+    document.cookie = `theme=${newTheme}; path=/; max-age=31536000`; // 1 year
+    setIsDark(newTheme === 'dark');
   };
 
   return (
