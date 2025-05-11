@@ -44,7 +44,6 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       total={total}
       sortKey={sortKey}
       sortDirection={sortDir}
-      basePath="/admin/products"
     />
   );
 }

@@ -19,7 +19,6 @@ type DataTableProps<T> = {
   total: number;
   sortKey?: string;
   sortDirection?: 'asc' | 'desc';
-  basePath?: string;
 };
 
 export async function DataTable<T>({
@@ -30,23 +29,16 @@ export async function DataTable<T>({
   total,
   sortKey,
   sortDirection,
-  basePath,
 }: DataTableProps<T>) {
   const totalPages = Math.ceil(total / pageSize);
+  const headerList = await headers();
+  const pathname = headerList.get('x-current-path');
 
-  // Fallback: grab current path if no basePath provided
-  let pathname = basePath ?? '';
-  if (!pathname) {
-    const hdrs = await headers();
-    const fullUrl = hdrs.get('x-url') || hdrs.get('referer') || '';
-    pathname = new URL(fullUrl || 'http://localhost').pathname;
-  }
-
-  const buildUrl = (opts: { page?: number; sortKey?: string; sortDir?: 'asc' | 'desc' }) => {
+  const buildUrl = (options: { page?: number; sortKey?: string; sortDir?: 'asc' | 'desc' }) => {
     const params = new URLSearchParams();
-    if (opts.page) params.set('page', String(opts.page));
-    if (opts.sortKey) params.set('sortKey', opts.sortKey);
-    if (opts.sortDir) params.set('sortDir', opts.sortDir);
+    if (options.page) params.set('page', String(options.page));
+    if (options.sortKey) params.set('sortKey', options.sortKey);
+    if (options.sortDir) params.set('sortDir', options.sortDir);
     return `${pathname}?${params.toString()}`;
   };
 
@@ -63,7 +55,7 @@ export async function DataTable<T>({
                 <th
                   key={String(col.key)}
                   className={cn(
-                    'px-4 py-2 font-semibold border-b',
+                    'px-4 py-2 font-semibold border',
                     col.sortable ? 'hover:bg-accent cursor-pointer' : ''
                   )}
                 >
@@ -98,7 +90,7 @@ export async function DataTable<T>({
             data.map((row, i) => (
               <tr key={i} className="hover:bg-muted/50 transition-colors">
                 {columns.map((col) => (
-                  <td key={String(col.key)} className="px-4 py-2 border-b">
+                  <td key={String(col.key)} className="px-4 py-2 border">
                     {col.render
                       ? col.render(row)
                       : // Check if the value is an array or object (e.g., categories)
@@ -121,7 +113,7 @@ export async function DataTable<T>({
 
       {/* Pagination & Summary */}
       <div className="flex flex-col sm:flex-row justify-between items-center p-4 text-sm">
-        <div className="text-muted-foreground mb-2 sm:mb-0">
+        <div className="text-foreground mb-2 sm:mb-0">
           Total items: <span className="font-medium">{total}</span>
         </div>
         <div className="flex items-center space-x-2">
