@@ -33,6 +33,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         { key: 'sku', label: 'SKU', sortable: true },
         { key: 'sn', label: 'SN', sortable: true },
         { key: 'price', label: 'Price', sortable: true },
+        { key: 'categories', label: 'Categories', sortable: false },
         { key: 'salePrice', label: 'Sale price', sortable: true },
         { key: 'deliveryPrice', label: 'Delivery price', sortable: true },
         { key: 'quantity', label: 'Quantity', sortable: true },

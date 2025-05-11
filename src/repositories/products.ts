@@ -1,6 +1,6 @@
 import { db } from '@/drizzle/db';
-import { ProductTable } from '@/drizzle/schema';
-import { eq, sql, desc, asc } from 'drizzle-orm';
+import { ProductTable, ProductCategory, ProductCategoryTable } from '@/drizzle/schema';
+import { eq, sql, desc, asc, inArray } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
 import { empty } from '@/lib/empty';
@@ -157,7 +157,7 @@ export async function getPaginatedProducts(
   ) as SortableProductColumn | null;
 
   // 1) Fetch page of products with pagination + sorting
-  const productsOrError = await getAllProducts(page, pageSize, validSortKey, sortDir);
+  const productsOrError = await getAllProductsWithCategories(page, pageSize, validSortKey, sortDir);
   if (productsOrError instanceof AppError) {
     return productsOrError;
   }
@@ -176,5 +176,70 @@ export async function getPaginatedProducts(
   } catch (error: unknown) {
     logger.logError(error, 'Repository: getPaginatedProducts');
     return new AppError('Failed to fetch paginated products', 'FETCH_FAILED');
+  }
+}
+
+export async function getAllProductsWithCategories(
+  page: number = 1,
+  pageSize: number = 10,
+  sortKey: SortableProductColumn | null = null,
+  sortDir: 'asc' | 'desc' = 'asc'
+) {
+  try {
+    const offset = (page - 1) * pageSize;
+
+    // Step 1: Build the base query to fetch products with optional pagination and sorting
+    const query = db.select().from(ProductTable).limit(pageSize).offset(offset);
+
+    // Step 2: Apply sorting if sortKey is provided
+    if (sortKey) {
+      const column = columnMap[sortKey];
+      query.orderBy(sortDir === 'asc' ? asc(column) : desc(column));
+    }
+
+    // Step 3: Fetch products
+    const products = await query;
+
+    const productIds = products.map((p) => p.id);
+
+    // Step 4: Fetch categories for the products
+    let productCategories: {
+      productId: number;
+      categoryId: number;
+      categoryName: string;
+    }[] = [];
+
+    if (productIds.length > 0) {
+      productCategories = await db
+        .select({
+          productId: ProductCategory.productId,
+          categoryId: ProductCategoryTable.id,
+          categoryName: ProductCategoryTable.name,
+        })
+        .from(ProductCategory)
+        .innerJoin(ProductCategoryTable, eq(ProductCategory.categoryId, ProductCategoryTable.id))
+        .where(inArray(ProductCategory.productId, productIds));
+    }
+
+    // Step 5: Group categories by productId
+    const categoriesByProductId = productCategories.reduce(
+      (acc, curr) => {
+        if (!acc[curr.productId]) {
+          acc[curr.productId] = {};
+        }
+        acc[curr.productId][curr.categoryId] = curr.categoryName;
+        return acc;
+      },
+      {} as Record<number, Record<number, string>>
+    );
+
+    // Step 6: Combine products with categories and return the results
+    return products.map((product) => ({
+      ...product,
+      categories: categoriesByProductId[product.id] || {}, // Add categories by product
+    }));
+  } catch (error) {
+    logger.logError(error, 'Repository: getAllProductsWithCategories');
+    return new AppError('Failed to fetch products with categories');
   }
 }

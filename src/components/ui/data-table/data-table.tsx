@@ -99,7 +99,18 @@ export async function DataTable<T>({
               <tr key={i} className="hover:bg-muted/50 transition-colors">
                 {columns.map((col) => (
                   <td key={String(col.key)} className="px-4 py-2 border-b">
-                    {col.render ? col.render(row) : String((row as never)[col.key] ?? '')}
+                    {col.render
+                      ? col.render(row)
+                      : // Check if the value is an array or object (e.g., categories)
+                        (Array.isArray((row as never)[col.key]) ||
+                            typeof (row as never)[col.key] === 'object') &&
+                          (row as never)[col.key]
+                        ? // Render array or object as a comma-separated string
+                          Object.values((row as never)[col.key])
+                            .map((value) => String(value))
+                            .join(', ')
+                        : // Default rendering for simple values or empty categories
+                          String((row as never)[col.key] ?? '')}
                   </td>
                 ))}
               </tr>
