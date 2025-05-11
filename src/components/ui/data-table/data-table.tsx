@@ -1,8 +1,8 @@
-'use client';
-
-import React from 'react';
+// src/components/ui/data-table/data-table.tsx
+import Link from 'next/link';
+import { headers } from 'next/headers';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 type Column<T> = {
   key: keyof T | string;
@@ -17,115 +17,133 @@ type DataTableProps<T> = {
   page: number;
   pageSize: number;
   total: number;
-  loading?: boolean;
   sortKey?: string;
   sortDirection?: 'asc' | 'desc';
-  onSortChange?: (key: string, direction: 'asc' | 'desc') => void;
-  onPageChange?: (page: number) => void;
+  basePath?: string;
 };
 
-export function DataTable<T>({
+export async function DataTable<T>({
   columns,
   data,
   page,
   pageSize,
   total,
-  loading = false,
   sortKey,
   sortDirection,
-  onSortChange,
-  onPageChange,
+  basePath,
 }: DataTableProps<T>) {
   const totalPages = Math.ceil(total / pageSize);
 
-  const handleSort = (key: string) => {
-    if (!onSortChange) return;
-    const direction = sortKey === key && sortDirection === 'asc' ? 'desc' : 'asc';
-    onSortChange(key, direction);
+  // Fallback: grab current path if no basePath provided
+  let pathname = basePath ?? '';
+  if (!pathname) {
+    const hdrs = await headers();
+    const fullUrl = hdrs.get('x-url') || hdrs.get('referer') || '';
+    pathname = new URL(fullUrl || 'http://localhost').pathname;
+  }
+
+  const buildUrl = (opts: { page?: number; sortKey?: string; sortDir?: 'asc' | 'desc' }) => {
+    const params = new URLSearchParams();
+    if (opts.page) params.set('page', String(opts.page));
+    if (opts.sortKey) params.set('sortKey', opts.sortKey);
+    if (opts.sortDir) params.set('sortDir', opts.sortDir);
+    return `${pathname}?${params.toString()}`;
   };
-
-  const renderSkeleton = () => (
-    <tbody>
-      {Array.from({ length: pageSize }).map((_, rowIdx) => (
-        <tr key={rowIdx} className="animate-pulse">
-          {columns.map((_, colIdx) => (
-            <td key={colIdx} className="px-4 py-3 border-b">
-              <div className="h-4 w-full bg-muted-foreground/20 rounded" />
-            </td>
-          ))}
-        </tr>
-      ))}
-    </tbody>
-  );
-
-  const renderRows = () =>
-    data.length === 0 ? (
-      <tr>
-        <td colSpan={columns.length} className="px-4 py-4 text-center text-muted-foreground">
-          No data available
-        </td>
-      </tr>
-    ) : (
-      data.map((row, rowIndex) => (
-        <tr key={rowIndex} className="hover:bg-muted/50 transition-colors">
-          {columns.map((col) => (
-            <td key={String(col.key)} className="px-4 py-2 border-b">
-              {col.render ? col.render(row) : String(row[col.key as keyof T] ?? '')}
-            </td>
-          ))}
-        </tr>
-      ))
-    );
 
   return (
     <div className="w-full overflow-x-auto border rounded-md">
-      <table className="min-w-full text-sm text-left border-collapse" aria-busy={loading}>
+      <table className="min-w-full text-sm text-left border-collapse">
         <thead className="bg-muted">
           <tr>
-            {columns.map((col) => (
-              <th
-                key={String(col.key)}
-                onClick={() => col.sortable && handleSort(String(col.key))}
-                className={cn(
-                  'px-4 py-2 font-semibold border-b cursor-pointer select-none',
-                  col.sortable ? 'hover:bg-accent' : 'cursor-default'
-                )}
-              >
-                <div className="flex items-center gap-1">
-                  {col.label}
-                  {col.sortable && sortKey === col.key && (
-                    <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>
+            {columns.map((col) => {
+              const isSorted = sortKey === col.key;
+              const nextDir = isSorted && sortDirection === 'asc' ? 'desc' : 'asc';
+
+              return (
+                <th
+                  key={String(col.key)}
+                  className={cn(
+                    'px-4 py-2 font-semibold border-b',
+                    col.sortable ? 'hover:bg-accent cursor-pointer' : ''
                   )}
-                </div>
-              </th>
-            ))}
+                >
+                  {col.sortable ? (
+                    <Link
+                      href={buildUrl({
+                        page: 1,
+                        sortKey: String(col.key),
+                        sortDir: nextDir,
+                      })}
+                      className="flex items-center gap-1"
+                    >
+                      {col.label}
+                      {isSorted && <span>{sortDirection === 'asc' ? '▲' : '▼'}</span>}
+                    </Link>
+                  ) : (
+                    col.label
+                  )}
+                </th>
+              );
+            })}
           </tr>
         </thead>
-        {loading ? renderSkeleton() : <tbody>{renderRows()}</tbody>}
+        <tbody>
+          {data.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length} className="px-4 py-4 text-center text-muted-foreground">
+                No data available
+              </td>
+            </tr>
+          ) : (
+            data.map((row, i) => (
+              <tr key={i} className="hover:bg-muted/50 transition-colors">
+                {columns.map((col) => (
+                  <td key={String(col.key)} className="px-4 py-2 border-b">
+                    {col.render ? col.render(row) : String((row as never)[col.key] ?? '')}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
       </table>
 
-      {/* Pagination */}
-      <div className="flex justify-between items-center p-4 text-sm text-muted-foreground">
-        <div>
-          Page {page} of {totalPages}
+      {/* Pagination & Summary */}
+      <div className="flex flex-col sm:flex-row justify-between items-center p-4 text-sm">
+        <div className="text-muted-foreground mb-2 sm:mb-0">
+          Total items: <span className="font-medium">{total}</span>
         </div>
-        <div className="space-x-2">
-          <Button
-            disabled={page === 1}
-            onClick={() => onPageChange?.(page - 1)}
-            variant="outline"
-            className="px-3 py-1"
-          >
-            Previous
-          </Button>
-          <Button
-            disabled={page === totalPages}
-            onClick={() => onPageChange?.(page + 1)}
-            variant="outline"
-            className="px-3 py-1"
-          >
-            Next
-          </Button>
+        <div className="flex items-center space-x-2">
+          {page > 1 ? (
+            <Link
+              href={buildUrl({ page: page - 1, sortKey, sortDir: sortDirection })}
+              className="p-2 border rounded hover:bg-muted transition"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Link>
+          ) : (
+            <span className="p-2 border rounded text-muted-foreground cursor-not-allowed">
+              <ChevronLeft className="w-4 h-4" />
+            </span>
+          )}
+
+          <span>
+            Page <span className="font-medium">{page}</span> of{' '}
+            <span className="font-medium">{totalPages}</span>
+          </span>
+
+          {page < totalPages ? (
+            <Link
+              href={buildUrl({ page: page + 1, sortKey, sortDir: sortDirection })}
+              className="p-2 border rounded hover:bg-muted transition"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          ) : (
+            <span className="p-2 border rounded text-muted-foreground cursor-not-allowed">
+              <ChevronRight className="w-4 h-4" />
+            </span>
+          )}
         </div>
       </div>
     </div>

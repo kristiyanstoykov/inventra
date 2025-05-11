@@ -113,7 +113,7 @@ export const ProductTable = mysqlTable('products', {
   price: decimal('price', { precision: 10, scale: 2 }).notNull().default('0.00'),
   salePrice: decimal('sale_price', { precision: 10, scale: 2 }),
   deliveryPrice: decimal('delivery_price', { precision: 10, scale: 2 }),
-  quantity: decimal('quantity', { precision: 10, scale: 2 }).default('0.00'),
+  quantity: int('quantity').default(0),
   brandId: int('brand_id').references(() => ProductBrandTable.id),
   createdAt: datetime('created_at')
     .notNull()

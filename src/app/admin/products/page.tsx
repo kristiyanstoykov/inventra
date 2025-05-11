@@ -1,25 +1,29 @@
-'use client';
-
-import { useEffect, useState } from 'react';
 import { DataTable } from '@/components/ui/data-table/data-table';
+import { AppError } from '@/lib/appError';
+import { getPaginatedProducts } from '@/repositories/products';
 
-export default function ProductsPage() {
-  const [products, setProducts] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [sortKey, setSortKey] = useState('createdAt');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+type ProductsPageProps = {
+  searchParams: Promise<{
+    page?: string;
+    sortKey?: string;
+    sortDir?: 'asc' | 'desc';
+  }>;
+};
 
-  const pageSize = 10;
+export default async function ProductsPage({ searchParams }: ProductsPageProps) {
+  const params = await searchParams;
 
-  useEffect(() => {
-    fetch(`/api/products?page=${page}&pageSize=${pageSize}&sort=${sortKey}&dir=${sortDir}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setProducts(data.data);
-        setTotal(data.total);
-      });
-  }, [page, sortKey, sortDir]);
+  const page = parseInt(params.page ?? '1', 10) || 1;
+  const sortKey = params.sortKey ?? 'createdAt';
+  const sortDir = params.sortDir === 'asc' ? 'asc' : 'desc';
+  const productsPerPage = 10;
+
+  const result = await getPaginatedProducts(page, productsPerPage, sortKey, sortDir);
+  if (result instanceof AppError) {
+    return <div>Error: {result.toString()}</div>;
+  }
+
+  const { data: products, total, pageSize } = result;
 
   return (
     <DataTable
@@ -39,11 +43,7 @@ export default function ProductsPage() {
       total={total}
       sortKey={sortKey}
       sortDirection={sortDir}
-      onPageChange={setPage}
-      onSortChange={(key, dir) => {
-        setSortKey(key);
-        setSortDir(dir);
-      }}
+      basePath="/admin/products"
     />
   );
 }
