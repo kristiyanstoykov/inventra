@@ -45,10 +45,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               key={href}
               href={href}
               className={cn(
-                'block rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                'block rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-aside-hover',
                 pathname === href
-                  ? 'bg-muted text-foreground'
-                  : 'text-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-aside-hover text-foreground'
+                  : 'text-foreground hover:bg-aside-hover hover:text-foreground'
               )}
               onClick={() => setIsSidebarOpen(false)} // close sidebar on mobile
             >

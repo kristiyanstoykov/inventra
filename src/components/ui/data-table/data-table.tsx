@@ -56,7 +56,7 @@ export async function DataTable<T>({
                   key={String(col.key)}
                   className={cn(
                     'px-4 py-2 font-semibold border',
-                    col.sortable ? 'hover:bg-accent cursor-pointer' : ''
+                    col.sortable ? 'hover:bg-muted-foreground/20 cursor-pointer' : ''
                   )}
                 >
                   {col.sortable ? (
