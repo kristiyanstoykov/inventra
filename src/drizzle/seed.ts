@@ -18,18 +18,50 @@ async function seed() {
 
   console.log('Seeding capabilities...');
   const capabilities = [
+    // Products
     { name: 'product.create', description: 'Create products' },
     { name: 'product.read', description: 'Read products' },
     { name: 'product.update', description: 'Update products' },
     { name: 'product.delete', description: 'Delete products' },
+    // Warehouses
+    { name: 'warehouse.create', description: 'Create warehouses' },
+    { name: 'warehouse.read', description: 'Read warehouses' },
+    { name: 'warehouse.update', description: 'Update warehouses' },
+    { name: 'warehouse.delete', description: 'Delete warehouses' },
+    // Users
+    { name: 'user.create', description: 'Create users' },
+    { name: 'user.read', description: 'Read users' },
+    { name: 'user.update', description: 'Update users' },
+    { name: 'user.delete', description: 'Delete users' },
+    // Orders
+    { name: 'order.create', description: 'Create orders' },
+    { name: 'order.read', description: 'Read orders' },
+    { name: 'order.update', description: 'Update orders' },
+    { name: 'order.delete', description: 'Delete orders' },
+    // Categories
+    { name: 'category.create', description: 'Create categories' },
+    { name: 'category.read', description: 'Read categories' },
+    { name: 'category.update', description: 'Update categories' },
+    { name: 'category.delete', description: 'Delete categories' },
+    // Attributes
+    { name: 'attribute.list', description: 'List attributes' },
+    { name: 'attribute.create', description: 'Create attributes' },
+    { name: 'attribute.read', description: 'Read attributes' },
+    { name: 'attribute.update', description: 'Update attributes' },
+    { name: 'attribute.delete', description: 'Delete attributes' },
+    // Invities
+    { name: 'invitee.create', description: 'Create invitees' },
+    { name: 'invitee.read', description: 'Read invitees' },
+    { name: 'invitee.update', description: 'Update invitees' },
+    { name: 'invitee.delete', description: 'Delete invitees' },
+    // Brands
+    { name: 'brand.create', description: 'Create brands' },
+    { name: 'brand.read', description: 'Read brands' },
+    { name: 'brand.update', description: 'Update brands' },
+    { name: 'brand.delete', description: 'Delete brands' },
   ];
 
   await db.insert(CapabilityTable).values(capabilities);
-
-  const insertedCapabilities = await db.select().from(CapabilityTable).where(
-    // MySQL doesn't support `IN` shorthand in Drizzle, so use basic OR logic or filter afterward
-    eq(CapabilityTable.name, 'product.create') // dummy to prevent errors, filter below
-  );
 
   // Filter only the capabilities we seeded
   const relevantCaps = (await db.select().from(CapabilityTable)).filter((cap) =>
