@@ -1,6 +1,6 @@
 import { DataTable } from '@/components/ui/data-table/data-table';
 import { AppError } from '@/lib/appError';
-import { getPaginatedProducts } from '@/repositories/products';
+import { getPaginatedProducts } from '@/drizzle/queries/products';
 
 type ProductsPageProps = {
   searchParams: Promise<{

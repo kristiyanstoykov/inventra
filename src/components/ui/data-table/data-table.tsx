@@ -93,16 +93,46 @@ export async function DataTable<T>({
                   <td key={String(col.key)} className="px-4 py-2 border">
                     {col.render
                       ? col.render(row)
-                      : // Check if the value is an array or object (e.g., categories)
-                        (Array.isArray((row as never)[col.key]) ||
-                            typeof (row as never)[col.key] === 'object') &&
-                          (row as never)[col.key]
-                        ? // Render array or object as a comma-separated string
-                          Object.values((row as never)[col.key])
-                            .map((value) => String(value))
-                            .join(', ')
-                        : // Default rendering for simple values or empty categories
-                          String((row as never)[col.key] ?? '')}
+                      : (() => {
+                          const value = (row as any)[col.key];
+                          // Format Date object or ISO date string as dd-mm-YYYY hh:mm:ss
+                          const formatDateTime = (date: Date) => {
+                            const pad = (n: number) => n.toString().padStart(2, '0');
+                            return (
+                              pad(date.getDate()) +
+                              '-' +
+                              pad(date.getMonth() + 1) +
+                              '-' +
+                              date.getFullYear() +
+                              ' ' +
+                              pad(date.getHours()) +
+                              ':' +
+                              pad(date.getMinutes()) +
+                              ':' +
+                              pad(date.getSeconds())
+                            );
+                          };
+                          if (value && typeof value === 'object' && value instanceof Date) {
+                            return formatDateTime(value);
+                          }
+                          // Check for ISO date string
+                          if (
+                            typeof value === 'string' &&
+                            !isNaN(Date.parse(value)) &&
+                            /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)
+                          ) {
+                            return formatDateTime(new Date(value));
+                          }
+                          if (
+                            Array.isArray(value) ||
+                            (typeof value === 'object' && value !== null)
+                          ) {
+                            return Object.values(value)
+                              .map((v) => String(v))
+                              .join(', ');
+                          }
+                          return String(value ?? '');
+                        })()}
                   </td>
                 ))}
               </tr>

@@ -44,7 +44,6 @@ async function seed() {
     { name: 'category.update', description: 'Update categories' },
     { name: 'category.delete', description: 'Delete categories' },
     // Attributes
-    { name: 'attribute.list', description: 'List attributes' },
     { name: 'attribute.create', description: 'Create attributes' },
     { name: 'attribute.read', description: 'Read attributes' },
     { name: 'attribute.update', description: 'Update attributes' },
@@ -61,12 +60,21 @@ async function seed() {
     { name: 'brand.delete', description: 'Delete brands' },
   ];
 
-  await db.insert(CapabilityTable).values(capabilities);
+  // Insert only capabilities that do not already exist
+  const existingCaps = await db.select().from(CapabilityTable);
+  const existingNames = new Set(existingCaps.map((cap) => cap.name));
+  const newCapabilities = capabilities.filter((cap) => !existingNames.has(cap.name));
+  if (newCapabilities.length > 0) {
+    await db.insert(CapabilityTable).values(newCapabilities);
+  }
 
   // Filter only the capabilities we seeded
   const relevantCaps = (await db.select().from(CapabilityTable)).filter((cap) =>
     capabilities.some((c) => c.name === cap.name)
   );
+
+  console.log('Clearing role_capabilities table...');
+  await db.delete(RoleCapabilityTable);
 
   console.log('Assigning capabilities to admin role...');
   await db.insert(RoleCapabilityTable).values(

@@ -13,7 +13,7 @@ const menuItems = [
   { label: 'Stock', href: '/admin/stock' },
   { label: 'Orders', href: '/admin/orders' },
   { label: 'Invites', href: '/admin/invites' },
-  { label: 'Clients', href: '/admin/clients' },
+  { label: 'Users', href: '/admin/users' },
   // { label: 'Settings', href: '/admin/settings' }, // maybe later
 ];
 
