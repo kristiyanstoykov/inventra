@@ -16,7 +16,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const page = parseInt(params.page ?? '1', 10) || 1;
   const sortKey = params.sortKey ?? 'createdAt';
   const sortDir = params.sortDir === 'asc' ? 'asc' : 'desc';
-  const productsPerPage = 10;
+  const productsPerPage = 50;
 
   const result = await getPaginatedProducts(page, productsPerPage, sortKey, sortDir);
   if (result instanceof AppError) {

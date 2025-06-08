@@ -36,7 +36,7 @@ export default async function CategoriesPage({ searchParams }: ProductsPageProps
       <Spacer size="sm" />
       <div className="grid grid-cols-1 md:grid-cols-[30%_1fr] gap-4">
         {/* Column 1 */}
-        <div className="flex flex-col gap-4 justify-center items-stretch">
+        <div className="flex flex-col gap-4  items-stretch">
           <CardTitle>Add new category</CardTitle>
           <CategoryForm />
         </div>

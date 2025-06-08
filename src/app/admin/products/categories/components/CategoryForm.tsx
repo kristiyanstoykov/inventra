@@ -59,7 +59,7 @@ export function CategoryForm() {
           )}
         />
 
-        <div className="flex gap-4 justify-end">
+        <div className="flex gap-4">
           <Button type="submit" disabled={isPending}>
             {isPending ? 'Adding...' : 'Add category'}
           </Button>
