@@ -46,6 +46,7 @@ body {
     --aside-hover: 210 14% 89%; /* slightly darker */
     --aside-background: 0 0% 100%;
 
+    --border-input: 210 12% 65%;
     --border: 210 15% 85%;
     --input: 220 60% 97%;
     --ring: 210 58% 19%;
@@ -90,6 +91,7 @@ body {
     --aside-hover: 215 18% 24%; /* slightly lighter on hover */
     --aside-background: 215 25% 12%; /* matches card background */
 
+    --border-input: 213 7% 42%;
     --border: 180 12% 24%;
     --input: 215 20% 24%;
     --ring: 0 0% 70%;

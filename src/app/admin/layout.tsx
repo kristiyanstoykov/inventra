@@ -9,7 +9,15 @@ import { MenuIcon, XIcon } from 'lucide-react';
 const menuItems = [
   { label: 'Dashboard', href: '/admin' },
   { label: 'Warehouses', href: '/admin/warehouses' },
-  { label: 'Products', href: '/admin/products' },
+  {
+    label: 'Products',
+    href: '/admin/products',
+    subItems: [
+      { label: 'All Products', href: '/admin/products' },
+      { label: 'New Product', href: '/admin/products/new' },
+      { label: 'Categories', href: '/admin/products/categories' },
+    ],
+  },
   { label: 'Stock', href: '/admin/stock' },
   { label: 'Orders', href: '/admin/orders' },
   { label: 'Invites', href: '/admin/invites' },
@@ -40,21 +48,58 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </div>
         <nav className="space-y-2">
-          {menuItems.map(({ label, href }) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'block rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-aside-hover',
-                pathname === href
-                  ? 'bg-aside-hover text-foreground'
-                  : 'text-foreground hover:bg-aside-hover hover:text-foreground'
-              )}
-              onClick={() => setIsSidebarOpen(false)} // close sidebar on mobile
-            >
-              {label}
-            </Link>
-          ))}
+          {menuItems.map(({ label, href, subItems }) => {
+            const isActive =
+              (!subItems && pathname === href) ||
+              (subItems && (pathname === href || pathname.startsWith(`${href}/`)));
+            const showSubmenu = isActive;
+
+            return (
+              <div key={href} className="group relative">
+                <Link
+                  href={href}
+                  className={cn(
+                    'block rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-aside-hover text-foreground font-bold'
+                      : 'text-foreground hover:bg-aside-hover'
+                  )}
+                  onClick={() => setIsSidebarOpen(false)}
+                >
+                  {label}
+                </Link>
+
+                {subItems && (
+                  <div
+                    className={cn(
+                      'ml-4 mt-1 space-y-1 transition-opacity',
+                      'group-hover:block',
+                      showSubmenu ? 'block' : 'hidden'
+                    )}
+                  >
+                    {subItems.map(({ label: subLabel, href: subHref }) => {
+                      const isSubActive = pathname === subHref;
+                      return (
+                        <Link
+                          key={subHref}
+                          href={subHref}
+                          className={cn(
+                            'block rounded-md px-3 py-1 text-sm',
+                            isSubActive
+                              ? 'font-bold'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          )}
+                          onClick={() => setIsSidebarOpen(false)}
+                        >
+                          {subLabel}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
       </aside>
 

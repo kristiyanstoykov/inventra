@@ -30,7 +30,9 @@ export async function DataTable<T>({
   sortKey,
   sortDirection,
 }: DataTableProps<T>) {
-  const totalPages = Math.ceil(total / pageSize);
+  const safePageSize = pageSize > 0 ? pageSize : 1;
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  const currentPage = Math.min(page, totalPages);
   const headerList = await headers();
   const pathname = headerList.get('x-current-path');
 
@@ -161,11 +163,11 @@ export async function DataTable<T>({
           )}
 
           <span>
-            Page <span className="font-medium">{page}</span> of{' '}
+            Page <span className="font-medium">{currentPage}</span> of{' '}
             <span className="font-medium">{totalPages}</span>
           </span>
 
-          {page < totalPages ? (
+          {currentPage < totalPages ? (
             <Link
               href={buildUrl({ page: page + 1, sortKey, sortDir: sortDirection })}
               className="p-2 border rounded hover:bg-muted transition"
