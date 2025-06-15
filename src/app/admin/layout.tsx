@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
-import { MenuIcon, XIcon } from 'lucide-react';
+import { MenuIcon, XIcon, ChevronDown } from 'lucide-react';
+import { Toaster } from 'sonner';
 
 const menuItems = [
   { label: 'Dashboard', href: '/admin' },
@@ -59,14 +60,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <Link
                   href={href}
                   className={cn(
-                    'block rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    'flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     isActive
                       ? 'bg-aside-hover text-foreground font-bold'
                       : 'text-foreground hover:bg-aside-hover'
                   )}
                   onClick={() => setIsSidebarOpen(false)}
                 >
-                  {label}
+                  <span>{label}</span>
+                  {subItems && (
+                    <ChevronDown className="ml-2 h-4 w-4 opacity-70 group-hover:opacity-100" />
+                  )}
                 </Link>
 
                 {subItems && (
@@ -124,6 +128,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </header>
 
+        <Toaster richColors position="top-center" closeButton />
         <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
