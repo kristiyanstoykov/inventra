@@ -14,6 +14,13 @@ export const columnMap = {
   updatedAt: ProductCategoryTable.updatedAt,
 } as const;
 
+export const columns = [
+  { key: 'id', label: '#', sortable: true, searchable: true },
+  { key: 'name', label: 'Name', sortable: true, searchable: true },
+  { key: 'slug', label: 'Slug', sortable: true, searchable: true },
+  { key: 'actions', label: 'Actions', searchable: false },
+];
+
 type SortableCategoryColumn = keyof typeof columnMap;
 
 export type paginatedCategoriesType = {
@@ -60,6 +67,14 @@ export async function getPaginatedCategories(
     const column = columnMap[validSortKey];
 
     // Build case-insensitive search filter for all columns
+    // Dynamically get searchable columns from the columns array
+    const searchableColumns = columns
+      .filter((col) => col.searchable)
+      .map((col) => col.key)
+      .filter(
+        (key): key is 'id' | 'name' | 'slug' => key === 'id' || key === 'name' || key === 'slug'
+      );
+
     let whereClause: ReturnType<typeof sql> | undefined = undefined;
     if (search && search.trim() !== '') {
       const like = (
@@ -68,11 +83,9 @@ export async function getPaginatedCategories(
           | typeof ProductCategoryTable.name
           | typeof ProductCategoryTable.slug
       ) => sql`LOWER(${col}) LIKE ${'%' + search.toLowerCase() + '%'}`;
-      whereClause = sql`
-        (${like(ProductCategoryTable.id)} OR
-         ${like(ProductCategoryTable.name)} OR
-         ${like(ProductCategoryTable.slug)})
-      `;
+      // Build OR clause for all searchable columns
+      const orClauses = searchableColumns.map((key) => like(columnMap[key]));
+      whereClause = sql`(${sql.join(orClauses, sql` OR `)})`;
     }
 
     // Fetch paginated categories with search
@@ -201,6 +214,8 @@ export async function updateCategoryById(id: number, name: string, slug: string)
       .set({ name, slug: newSlug, updatedAt: new Date() })
       .where(eq(ProductCategoryTable.id, id));
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore: affectedRows may not exist depending on DB driver
     if (result.affectedRows === 0) {
       throw new Error(`Category with ID ${id} not found or not updated`);
     }

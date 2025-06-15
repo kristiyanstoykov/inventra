@@ -11,7 +11,7 @@ export function DataTableSearchControls({
   queryParams: string;
 }) {
   return (
-    <form action={searchAction} className="flex items-center justify-between gap-2 py-2">
+    <form action={searchAction} className="flex items-center justify-between gap-2 py-2 max-w-md">
       <input type="hidden" name="searchParams" value={queryParams} />
       <div className="relative w-full max-w-sm">
         <Input
@@ -20,12 +20,14 @@ export function DataTableSearchControls({
           placeholder="Search..."
           defaultValue={search}
           className="h-9 w-full pl-3 pr-10 py-1.5 border rounded-md text-sm"
+          // Ensure the input is not type="search" with preventDefault, and is not disabled
         />
         <Button
           type="submit"
           variant="ghost"
           size="icon"
           className="absolute right-1 top-1/2 -translate-y-1/2"
+          tabIndex={-1} // Prevents double submit on Enter
         >
           <Search className="w-4 h-4" />
         </Button>

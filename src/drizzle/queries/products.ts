@@ -19,6 +19,26 @@ export const columnMap = {
   brandId: ProductTable.brandId,
 } as const;
 
+export const columns: Column[] = [
+  { key: 'id', label: '#', sortable: true, searchable: false },
+  { key: 'name', label: 'Name', sortable: true, searchable: true },
+  { key: 'sku', label: 'SKU', sortable: true, searchable: true },
+  { key: 'sn', label: 'SN', sortable: true, searchable: true },
+  { key: 'categories', label: 'Categories', searchable: false },
+  { key: 'price', label: 'Price', sortable: true, searchable: false },
+  { key: 'deliveryPrice', label: 'Delivery Price', sortable: true, searchable: false },
+  { key: 'quantity', label: 'Quantity', sortable: true, searchable: false },
+  { key: 'createdAt', label: 'Created on', sortable: true, searchable: false },
+  { key: 'actions', label: 'Actions', searchable: false },
+];
+
+export type Column = {
+  key: string;
+  label: string;
+  sortable?: boolean;
+  searchable?: boolean;
+};
+
 type SortableProductColumn = keyof typeof columnMap;
 
 export type paginatedProductsType = {
@@ -188,12 +208,14 @@ export async function getPaginatedProducts(
 
     if (!empty(search)) {
       const loweredSearch = `%${search.toLowerCase()}%`;
+      // Get all searchable columns from the columns array and map to columnMap keys
+      const searchableKeys = columns
+        .filter((col) => col.searchable)
+        .map((col) => col.key)
+        .filter((key): key is SortableProductColumn => key in columnMap);
+
       baseCountQuery.where(
-        or(
-          like(sql`LOWER(${ProductTable.name})`, loweredSearch),
-          like(sql`LOWER(${ProductTable.sku})`, loweredSearch),
-          like(sql`LOWER(${ProductTable.sn})`, loweredSearch)
-        )
+        or(...searchableKeys.map((key) => like(sql`LOWER(${columnMap[key]})`, loweredSearch)))
       );
     }
 

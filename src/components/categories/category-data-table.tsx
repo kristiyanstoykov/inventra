@@ -1,4 +1,4 @@
-import { getPaginatedCategories } from '@/drizzle/queries/categories';
+import { columns, getPaginatedCategories } from '@/drizzle/queries/categories';
 import { AppError } from '@/lib/appError';
 import { CategoryTableHeader } from './category-table-header';
 import { CategoryTableFooter } from './category-table-footer';
@@ -27,12 +27,6 @@ export async function CategoryDataTable({
   const { data: categories, total } = result;
   const totalPages = Math.ceil(total / pageSize);
   const currentPage = Math.min(page, totalPages);
-  const columns = [
-    { key: 'id', label: '#', sortable: true },
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'slug', label: 'Slug', sortable: true },
-    { key: 'actions', label: 'Actions' },
-  ];
 
   return (
     <div className="w-full overflow-x-auto md:border rounded-md">

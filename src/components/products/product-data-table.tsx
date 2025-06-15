@@ -1,4 +1,4 @@
-import { getPaginatedProducts, paginatedProductsType } from '@/drizzle/queries/products';
+import { columns, getPaginatedProducts, paginatedProductsType } from '@/drizzle/queries/products';
 import { AppError } from '@/lib/appError';
 import { ProductTableHeader } from './product-table-header';
 import { ProductTableBody } from './product-table-body';
@@ -39,19 +39,6 @@ export function formatFieldValue(
 
   return value.toString();
 }
-
-const columns: Column[] = [
-  { key: 'id', label: '#', sortable: true },
-  { key: 'name', label: 'Name', sortable: true },
-  { key: 'sku', label: 'SKU', sortable: true },
-  { key: 'sn', label: 'SN', sortable: true },
-  { key: 'categories', label: 'Categories' },
-  { key: 'price', label: 'Price', sortable: true },
-  { key: 'deliveryPrice', label: 'Delivery Price', sortable: true },
-  { key: 'quantity', label: 'Quantity', sortable: true },
-  { key: 'createdAt', label: 'Created on', sortable: true },
-  { key: 'actions', label: 'Actions' },
-];
 
 export async function ProductDataTable({
   page,

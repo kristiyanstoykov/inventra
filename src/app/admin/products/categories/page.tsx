@@ -5,7 +5,7 @@ import { CategoryForm } from '../../../../components/categories/category-add-for
 import { CategoryDataTable } from '@/components/categories/category-data-table';
 import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
-import { DataTableSearchControls } from '@/components/ui/data-table/DataTableSearchControls';
+import { DataTableSearchControls } from '@/components/ui/data-table/data-table-search-controls';
 
 export default async function CategoriesPage({
   searchParams,
