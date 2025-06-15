@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { buildUrl } from '@/lib/utils';
 
 export function ProductTableFooter({
+  queryParams,
   total,
   page,
   currentPage,
@@ -9,6 +10,7 @@ export function ProductTableFooter({
   sortKey,
   sortDir,
 }: {
+  queryParams: string;
   total: number;
   page: number;
   currentPage: number;
@@ -27,7 +29,7 @@ export function ProductTableFooter({
             <div className="flex items-center space-x-2">
               {page > 1 ? (
                 <a
-                  href={buildUrl({ page: page - 1, sortKey, sortDir })}
+                  href={buildUrl({ page: page - 1, sortKey, sortDir }, queryParams)}
                   className="p-2 border rounded hover:bg-muted transition"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -43,7 +45,7 @@ export function ProductTableFooter({
               </span>
               {currentPage < totalPages ? (
                 <a
-                  href={buildUrl({ page: page + 1, sortKey, sortDir })}
+                  href={buildUrl({ page: page + 1, sortKey, sortDir }, queryParams)}
                   className="p-2 border rounded hover:bg-muted transition"
                 >
                   <ChevronRight className="w-4 h-4" />

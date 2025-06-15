@@ -1,20 +1,10 @@
-import { paginatedProductsType } from '@/drizzle/queries/products';
-import { formatDateTime } from '@/lib/utils';
+import { getPaginatedProducts, paginatedProductsType } from '@/drizzle/queries/products';
+import { AppError } from '@/lib/appError';
 import { ProductTableHeader } from './product-table-header';
 import { ProductTableBody } from './product-table-body';
 import { ProductTableFooter } from './product-table-footer';
 import { empty } from '@/lib/empty';
-
-type ProductDataTableProps = {
-  data: paginatedProductsType[];
-  page: number;
-  pageSize: number;
-  total: number;
-  sortKey: string;
-  sortDirection: 'asc' | 'desc';
-  queryParams?: string;
-  currentPage?: number;
-};
+import { formatDateTime } from '@/lib/utils';
 
 export type Column = {
   key: string;
@@ -50,7 +40,7 @@ export function formatFieldValue(
   return value.toString();
 }
 
-const columns: { key: string; label: string; sortable?: boolean }[] = [
+const columns: Column[] = [
   { key: 'id', label: '#', sortable: true },
   { key: 'name', label: 'Name', sortable: true },
   { key: 'sku', label: 'SKU', sortable: true },
@@ -63,34 +53,47 @@ const columns: { key: string; label: string; sortable?: boolean }[] = [
   { key: 'actions', label: 'Actions' },
 ];
 
-export function ProductDataTable({
-  data,
+export async function ProductDataTable({
   page,
-  pageSize,
-  total,
   sortKey,
   sortDirection,
-  queryParams = '',
-  currentPage = 1,
-}: ProductDataTableProps) {
-  // Calculate derived values
-  const products = data;
-  const stringParams = queryParams;
-  const totalPages = Math.ceil(total / pageSize);
-  const sortDir = sortDirection;
+  search,
+  queryParams,
+}: {
+  page: number;
+  sortKey: string;
+  sortDirection: 'asc' | 'desc';
+  search: string;
+  queryParams: string;
+}) {
+  const productsPerPage = 50;
+  const result = await getPaginatedProducts(page, productsPerPage, sortKey, sortDirection, search);
+
+  if (result instanceof AppError) {
+    return <div className="text-red-500 p-4">Error loading products: {result.toString()}</div>;
+  }
+
+  const { data: products, total, pageSize } = result;
+  const currentPage = Math.min(page, Math.ceil(total / pageSize));
 
   return (
     <div className="w-full overflow-x-auto md:border rounded-md">
       <table className="min-w-full text-sm text-left border-collapse">
-        <ProductTableHeader sortKey={sortKey} sortDir={sortDir} columns={columns} />
-        <ProductTableBody products={products} stringParams={stringParams} columns={columns} />
+        <ProductTableHeader
+          queryParams={queryParams}
+          sortKey={sortKey}
+          sortDir={sortDirection}
+          columns={columns}
+        />
+        <ProductTableBody products={products} columns={columns} stringParams={queryParams} />
         <ProductTableFooter
+          queryParams={queryParams}
           total={total}
           page={page}
           currentPage={currentPage}
-          totalPages={totalPages}
+          totalPages={Math.ceil(total / pageSize)}
           sortKey={sortKey}
-          sortDir={sortDir}
+          sortDir={sortDirection}
         />
       </table>
     </div>

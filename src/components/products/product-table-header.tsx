@@ -2,10 +2,12 @@ import { buildUrl, cn } from '@/lib/utils';
 import { Column } from './product-data-table';
 
 export function ProductTableHeader({
+  queryParams,
   sortKey,
   sortDir,
   columns,
 }: {
+  queryParams: string;
   sortKey: string;
   sortDir: 'asc' | 'desc';
   columns: Column[];
@@ -18,7 +20,7 @@ export function ProductTableHeader({
           const nextDir = isSorted && sortDir === 'asc' ? 'desc' : 'asc';
           const content = col.sortable ? (
             <a
-              href={buildUrl({ sortKey: col.key, sortDir: nextDir })}
+              href={buildUrl({ sortKey: col.key, sortDir: nextDir }, queryParams)}
               className={`flex items-center gap-1 transition-colors ${
                 isSorted ? 'text-primary font-semibold' : 'text-foreground hover:text-primary'
               }`}
