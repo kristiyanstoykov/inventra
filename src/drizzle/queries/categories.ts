@@ -16,6 +16,15 @@ export const columnMap = {
 
 type SortableCategoryColumn = keyof typeof columnMap;
 
+export type paginatedCategoriesType = {
+  productCount: number;
+  id: number;
+  name: string;
+  slug: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 // Get all categories (optionally sorted, no pagination)
 export async function getAllCategories(
   sortKey: SortableCategoryColumn = 'createdAt',
@@ -39,7 +48,8 @@ export async function getPaginatedCategories(
   page: number = 1,
   pageSize: number = 10,
   sortKey?: string,
-  sortDir: 'asc' | 'desc' = 'asc'
+  sortDir: 'asc' | 'desc' = 'asc',
+  search?: string
 ) {
   const validSortKey = (
     sortKey && sortKey in columnMap ? sortKey : 'createdAt'
@@ -49,10 +59,27 @@ export async function getPaginatedCategories(
     const offset = (page - 1) * pageSize;
     const column = columnMap[validSortKey];
 
-    // Fetch paginated categories
+    // Build case-insensitive search filter for all columns
+    let whereClause: ReturnType<typeof sql> | undefined = undefined;
+    if (search && search.trim() !== '') {
+      const like = (
+        col:
+          | typeof ProductCategoryTable.id
+          | typeof ProductCategoryTable.name
+          | typeof ProductCategoryTable.slug
+      ) => sql`LOWER(${col}) LIKE ${'%' + search.toLowerCase() + '%'}`;
+      whereClause = sql`
+        (${like(ProductCategoryTable.id)} OR
+         ${like(ProductCategoryTable.name)} OR
+         ${like(ProductCategoryTable.slug)})
+      `;
+    }
+
+    // Fetch paginated categories with search
     const categories = await db
       .select()
       .from(ProductCategoryTable)
+      .where(whereClause ? whereClause : undefined)
       .orderBy(sortDir === 'asc' ? asc(column) : desc(column))
       .limit(pageSize)
       .offset(offset);
@@ -72,10 +99,13 @@ export async function getPaginatedCategories(
     }
     const countMap = Object.fromEntries(counts.map((c) => [c.categoryId, c.count]));
 
-    // Fetch total count for pagination
-    const [{ count: total }] = await db
+    // Fetch total count for pagination (with search)
+    const totalCountResult = await db
       .select({ count: sql<number>`COUNT(*)` })
-      .from(ProductCategoryTable);
+      .from(ProductCategoryTable)
+      .where(whereClause ? whereClause : undefined);
+
+    const total = totalCountResult[0]?.count ?? 0;
 
     return {
       data: categories.map((cat) => ({
@@ -89,7 +119,8 @@ export async function getPaginatedCategories(
     };
   } catch (error) {
     logger.logError(error, 'Repository: getPaginatedCategories');
-    return new AppError('Failed to fetch paginated categories', 'FETCH_FAILED');
+    const message = error instanceof Error ? error.message : 'Failed to fetch paginated categories';
+    return new AppError(`Failed to fetch paginated categories: ${message}`, 'FETCH_FAILED');
   }
 }
 
@@ -153,5 +184,33 @@ export async function getCategoryById(id: number) {
   } catch (error) {
     logger.logError(error, 'Repository: getCategoryById');
     return new AppError(`Failed to fetch category with ID: ${id}`);
+  }
+}
+
+// Update a category by ID
+export async function updateCategoryById(id: number, name: string, slug: string) {
+  try {
+    const newSlug = transliterateBgToLatin(slug)
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .substring(0, 255);
+
+    const result = await db
+      .update(ProductCategoryTable)
+      .set({ name, slug: newSlug, updatedAt: new Date() })
+      .where(eq(ProductCategoryTable.id, id));
+
+    if (result.affectedRows === 0) {
+      throw new Error(`Category with ID ${id} not found or not updated`);
+    }
+
+    return id;
+  } catch (error) {
+    logger.logError(error, 'Repository: updateCategoryById');
+    return new AppError(
+      error instanceof Error ? error.message : 'Failed to update category',
+      'UPDATE_FAILED'
+    );
   }
 }

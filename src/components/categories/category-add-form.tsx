@@ -15,7 +15,8 @@ import { Button } from '@/components/ui/button';
 import { useState, useTransition } from 'react';
 import { categorySchema } from './schema';
 import { useRouter } from 'next/navigation';
-import { createCategoryAction } from '../actions';
+import { createCategoryAction } from '../../app/admin/products/categories/actions';
+import { toast } from 'sonner';
 
 export function CategoryForm() {
   const [error, setError] = useState<string>();
@@ -34,9 +35,11 @@ export function CategoryForm() {
       const result = await createCategoryAction(values);
       if (result?.error) {
         setError(result.error);
+        toast.error('There was an error adding the category: ' + result.error);
       } else {
         form.reset();
         router.refresh();
+        toast.success('Category added successfully');
       }
     });
   }
