@@ -1,4 +1,6 @@
-export function empty(value: unknown): boolean {
+export function empty(
+  value: unknown
+): value is undefined | null | false | 0 | '' | [] | Record<string, never> {
   return (
     value === undefined ||
     value === null ||
@@ -6,6 +8,9 @@ export function empty(value: unknown): boolean {
     value === 0 ||
     value === '' ||
     (Array.isArray(value) && value.length === 0) ||
-    (typeof value === 'object' && Object.keys(value).length === 0)
+    (typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value) &&
+      Object.keys(value).length === 0)
   );
 }

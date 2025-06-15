@@ -45,9 +45,11 @@ export function formatDateTime(date: Date): string {
 
 export function buildUrl(
   options: { page?: number; sortKey?: string; sortDir?: 'asc' | 'desc' },
-  params: Record<string, string> = {}
+  params: string | Record<string, string> = ''
 ) {
-  const urlSearchParams = new URLSearchParams({ ...params });
+  const urlSearchParams = new URLSearchParams(
+    typeof params === 'string' ? params : Object.entries(params).map(([k, v]) => [k, v])
+  );
   if (options.page !== undefined) urlSearchParams.set('page', String(options.page));
   if (options.sortKey) urlSearchParams.set('sortKey', options.sortKey);
   if (options.sortDir) urlSearchParams.set('sortDir', options.sortDir);

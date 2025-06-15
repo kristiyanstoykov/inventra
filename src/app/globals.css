@@ -8,6 +8,15 @@ body {
   font-family: 'IBM Plex Sans', 'Inter', 'Roboto', Arial, sans-serif;
 }
 
+@layer utilities {
+  .toast-dark {
+    @apply bg-zinc-900 text-white border-zinc-700;
+  }
+  .toast-light {
+    @apply bg-white text-black border-gray-300;
+  }
+}
+
 @layer base {
   :root {
     --content-max-width: 1200px;
@@ -35,6 +44,12 @@ body {
 
     --muted: 210 20% 94%;
     --muted-foreground: 210 10% 40%;
+
+    --ghost: 210 10% 50% / 0.1;
+
+    --danger: 0 84% 60%; /* red */
+    --danger-hover: 0 90% 70%; /* brighter red for hover */
+    --danger-foreground: 0 0% 100%; /* white */
 
     --accent: 28 95% 53%; /* #F97807 */
     --accent-foreground: 0 0% 100%;
@@ -80,6 +95,12 @@ body {
 
     --muted: 215 15% 22%;
     --muted-foreground: 0 0% 60%;
+
+    --ghost: 215 20% 40% / 0.25;
+
+    --danger: 0 72% 35%; /* darker deep red */
+    --danger-hover: 0 80% 45%; /* slightly brighter for hover */
+    --danger-foreground: 0 0% 98%; /* near white */
 
     --accent: 28 95% 53%; /* same orange */
     --accent-foreground: 0 0% 100%;

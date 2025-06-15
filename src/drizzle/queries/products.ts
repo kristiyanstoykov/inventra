@@ -186,7 +186,7 @@ export async function getPaginatedProducts(
   try {
     const baseCountQuery = db.select({ count: sql<number>`COUNT(*)` }).from(ProductTable);
 
-    if (search) {
+    if (!empty(search)) {
       const loweredSearch = `%${search.toLowerCase()}%`;
       baseCountQuery.where(
         or(
