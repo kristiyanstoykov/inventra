@@ -58,9 +58,12 @@ export function ProductTableBody({
   const handleDelete = async (id: number) => {
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/products/delete/${id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const formData = new FormData();
+        formData.append('id', id.toString());
+
+        const res = await fetch('/api/admin/products/', {
+          method: 'DELETE',
+          body: formData,
         });
 
         const result = await res.json();
