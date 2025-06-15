@@ -23,18 +23,23 @@ const headingVariants = cva('font-bold tracking-tight text-foreground', {
 export interface HeadingProps
   extends React.HTMLAttributes<HTMLHeadingElement>,
     VariantProps<typeof headingVariants> {
+  as?: keyof React.JSX.IntrinsicElements; // for semantic tag
   asChild?: boolean;
 }
 
 const Heading = React.forwardRef<HTMLHeadingElement, HeadingProps>(
-  ({ className, size = 'h2', asChild = false, ...props }, ref) => {
-    const semanticTag = size; // e.g. 'h1', 'h2', ...
-    const Comp = asChild ? Slot : semanticTag;
+  ({ className = '', size = 'h2', as = 'h2', asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : as;
 
-    return <Comp className={cn(headingVariants({ size, className }))} ref={ref} {...props} />;
+    const forceSize = /(?:^|\\s)text-(xs|sm|base|md|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl)/.test(
+      className
+    );
+
+    const variantClasses = forceSize ? '' : headingVariants({ size });
+
+    return <Comp className={cn(variantClasses, className)} ref={ref} {...props} />;
   }
 );
 
 Heading.displayName = 'Heading';
-
 export { Heading, headingVariants };

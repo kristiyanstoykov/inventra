@@ -1,11 +1,11 @@
 import { db } from '@/drizzle/db';
 import { ProductTable, ProductCategory, ProductCategoryTable } from '@/drizzle/schema';
-import { eq, sql, desc, asc, inArray } from 'drizzle-orm';
+import { or, eq, sql, desc, asc, inArray, like } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
 import { empty } from '@/lib/empty';
 
-const columnMap = {
+export const columnMap = {
   id: ProductTable.id,
   name: ProductTable.name,
   sku: ProductTable.sku,
@@ -20,6 +20,21 @@ const columnMap = {
 } as const;
 
 type SortableProductColumn = keyof typeof columnMap;
+
+export type paginatedProductsType = {
+  categories: Record<number, string>;
+  id: number;
+  name: string;
+  sku: string | null;
+  sn: string | null;
+  price: string;
+  salePrice: string | null;
+  deliveryPrice: string | null;
+  quantity: number | null;
+  brandId: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 // Get all products with optional sorting and pagination
 export async function getAllProducts(
@@ -149,22 +164,40 @@ export async function getPaginatedProducts(
   page: number = 1,
   pageSize: number = 10,
   sortKey?: string,
-  sortDir: 'asc' | 'desc' = 'asc'
+  sortDir: 'asc' | 'desc' = 'asc',
+  search?: string
 ) {
-  // Validate sortKey
   const validSortKey = (
     sortKey && sortKey in columnMap ? sortKey : null
   ) as SortableProductColumn | null;
 
-  // 1) Fetch page of products with pagination + sorting
-  const productsOrError = await getAllProductsWithCategories(page, pageSize, validSortKey, sortDir);
+  const productsOrError = await getAllProductsWithCategories(
+    page,
+    pageSize,
+    validSortKey,
+    sortDir,
+    search
+  );
+
   if (productsOrError instanceof AppError) {
     return productsOrError;
   }
 
-  // 2) Fetch total count
   try {
-    const [{ count }] = await db.select({ count: sql<number>`COUNT(*)` }).from(ProductTable);
+    const baseCountQuery = db.select({ count: sql<number>`COUNT(*)` }).from(ProductTable);
+
+    if (search) {
+      const loweredSearch = `%${search.toLowerCase()}%`;
+      baseCountQuery.where(
+        or(
+          like(sql`LOWER(${ProductTable.name})`, loweredSearch),
+          like(sql`LOWER(${ProductTable.sku})`, loweredSearch),
+          like(sql`LOWER(${ProductTable.sn})`, loweredSearch)
+        )
+      );
+    }
+
+    const [{ count }] = await baseCountQuery;
 
     return {
       data: productsOrError,
@@ -175,7 +208,7 @@ export async function getPaginatedProducts(
     };
   } catch (error: unknown) {
     logger.logError(error, 'Repository: getPaginatedProducts');
-    return new AppError('Failed to fetch paginated products', 'FETCH_FAILED');
+    return new AppError(`Failed to fetch paginated products: ${error}`, 'FETCH_FAILED');
   }
 }
 
@@ -183,26 +216,32 @@ export async function getAllProductsWithCategories(
   page: number = 1,
   pageSize: number = 10,
   sortKey: SortableProductColumn | null = null,
-  sortDir: 'asc' | 'desc' = 'asc'
+  sortDir: 'asc' | 'desc' = 'asc',
+  search?: string
 ) {
   try {
     const offset = (page - 1) * pageSize;
-
-    // Step 1: Build the base query to fetch products with optional pagination and sorting
     const query = db.select().from(ProductTable).limit(pageSize).offset(offset);
 
-    // Step 2: Apply sorting if sortKey is provided
+    if (search) {
+      const loweredSearch = `%${search.toLowerCase()}%`;
+      query.where(
+        or(
+          like(sql`LOWER(${ProductTable.name})`, loweredSearch),
+          like(sql`LOWER(${ProductTable.sku})`, loweredSearch),
+          like(sql`LOWER(${ProductTable.sn})`, loweredSearch)
+        )
+      );
+    }
+
     if (sortKey) {
       const column = columnMap[sortKey];
       query.orderBy(sortDir === 'asc' ? asc(column) : desc(column));
     }
 
-    // Step 3: Fetch products
     const products = await query;
-
     const productIds = products.map((p) => p.id);
 
-    // Step 4: Fetch categories for the products
     let productCategories: {
       productId: number;
       categoryId: number;
@@ -221,22 +260,18 @@ export async function getAllProductsWithCategories(
         .where(inArray(ProductCategory.productId, productIds));
     }
 
-    // Step 5: Group categories by productId
     const categoriesByProductId = productCategories.reduce(
       (acc, curr) => {
-        if (!acc[curr.productId]) {
-          acc[curr.productId] = {};
-        }
+        if (!acc[curr.productId]) acc[curr.productId] = {};
         acc[curr.productId][curr.categoryId] = curr.categoryName;
         return acc;
       },
       {} as Record<number, Record<number, string>>
     );
 
-    // Step 6: Combine products with categories and return the results
     return products.map((product) => ({
       ...product,
-      categories: categoriesByProductId[product.id] || {}, // Add categories by product
+      categories: categoriesByProductId[product.id] || {},
     }));
   } catch (error) {
     logger.logError(error, 'Repository: getAllProductsWithCategories');

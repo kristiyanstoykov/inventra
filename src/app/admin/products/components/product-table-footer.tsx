@@ -39,7 +39,7 @@ export function ProductTableFooter({
               )}
               <span>
                 Page <span className="font-medium">{currentPage}</span> of{' '}
-                <span className="font-medium">{totalPages}</span>
+                <span>{totalPages === 0 ? 1 : totalPages}</span>
               </span>
               {currentPage < totalPages ? (
                 <a

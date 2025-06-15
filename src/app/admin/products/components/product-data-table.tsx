@@ -3,6 +3,7 @@ import { formatDateTime } from '@/lib/utils';
 import { ProductTableHeader } from './product-table-header';
 import { ProductTableBody } from './product-table-body';
 import { ProductTableFooter } from './product-table-footer';
+import { empty } from '@/lib/empty';
 
 type ProductDataTableProps = {
   data: paginatedProductsType[];
@@ -28,6 +29,9 @@ export function formatFieldValue(
   const value = product[field];
 
   if (field === 'categories') {
+    if (empty(product.categories)) {
+      return '-';
+    }
     return product.categories ? Object.values(product.categories).join(', ') : '-';
   }
 
@@ -35,7 +39,7 @@ export function formatFieldValue(
     return product.createdAt ? formatDateTime(product.createdAt) : '-';
   }
 
-  if (value === null || value === undefined) {
+  if (empty(value) || value === null || value === undefined) {
     return '-';
   }
 

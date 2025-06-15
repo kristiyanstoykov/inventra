@@ -2,6 +2,7 @@ import { AppError } from '@/lib/appError';
 import { getPaginatedProducts } from '@/drizzle/queries/products';
 import { DataTableSearchControls } from '@/components/ui/data-table/DataTableSearchControls';
 import { ProductDataTable } from './components/product-data-table';
+import { Heading } from '@/components/ui/heading';
 
 export default async function ProductsPage({
   searchParams,
@@ -33,6 +34,9 @@ export default async function ProductsPage({
 
   return (
     <>
+      <Heading size={'h3'} as={'h1'}>
+        Products
+      </Heading>
       <DataTableSearchControls />
       <div className="w-full overflow-x-auto rounded-md">
         <ProductDataTable
@@ -42,6 +46,7 @@ export default async function ProductsPage({
           total={total}
           sortKey={sortKey}
           sortDirection={sortDir}
+          searchPrams={params}
           queryParams={stringParams}
           currentPage={currentPage}
         />

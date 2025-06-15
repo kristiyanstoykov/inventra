@@ -48,7 +48,7 @@ async function seed() {
     { name: 'attribute.read', description: 'Read attributes' },
     { name: 'attribute.update', description: 'Update attributes' },
     { name: 'attribute.delete', description: 'Delete attributes' },
-    // Invities
+    // Invitees
     { name: 'invitee.create', description: 'Create invitees' },
     { name: 'invitee.read', description: 'Read invitees' },
     { name: 'invitee.update', description: 'Update invitees' },
