@@ -16,7 +16,6 @@ export default async function ProductsPage({
 }) {
   const params = await searchParams;
   const stringParams = new URLSearchParams({ ...params }).toString();
-  console.log('Search Params:', stringParams);
 
   const page = parseInt(params.page ?? '1', 10) || 1;
   const sortKey = params.sortKey ?? 'createdAt';

@@ -1,50 +1,48 @@
-import { DataTable } from '@/components/ui/data-table/data-table';
-import { AppError } from '@/lib/appError';
-import { getPaginatedUsers } from '@/drizzle/queries/users';
+import { DataTableSearchControls } from '@/components/ui/data-table/data-table-search-controls';
+import { Heading } from '@/components/ui/heading';
+import { UsersDataTable } from '@/components/users/users-data-table';
+import { Loader2 } from 'lucide-react';
+import { Suspense } from 'react';
 
-type UsersPageProps = {
+export default async function UsersPage({
+  searchParams,
+}: {
   searchParams: Promise<{
     page?: string;
     sortKey?: string;
     sortDir?: 'asc' | 'desc';
+    search?: string;
   }>;
-};
-
-export default async function UsersPage({ searchParams }: UsersPageProps) {
+}) {
   const params = await searchParams;
+  const stringParams = new URLSearchParams({ ...params }).toString();
 
   const page = parseInt(params.page ?? '1', 10) || 1;
-  const sortKey = params.sortKey ?? 'id';
+  const sortKey = params.sortKey ?? 'createdAt';
   const sortDir = params.sortDir === 'asc' ? 'asc' : 'desc';
-  const productsPerPage = 10;
-
-  const result = await getPaginatedUsers(page, productsPerPage, sortKey, sortDir);
-  if (result instanceof AppError) {
-    return <div>Error: {result.toString()}</div>;
-  }
-
-  const { data: users, total, pageSize } = result;
+  const search = params.search ?? '';
 
   return (
-    <DataTable
-      columns={[
-        { key: 'id', label: '#', sortable: true },
-        { key: 'email', label: 'Email', sortable: true },
-        { key: 'firstName', label: 'First name', sortable: true },
-        { key: 'lastName', label: 'Last name', sortable: true },
-        { key: 'phone', label: 'Phone', sortable: true },
-        { key: 'address', label: 'Address', sortable: true },
-        { key: 'companyName', label: 'Company name', sortable: true },
-        { key: 'bulstat', label: 'Bulstat', sortable: true },
-        { key: 'vatNumber', label: 'VAT number', sortable: true },
-        { key: 'createdAt', label: 'Created at', sortable: true },
-      ]}
-      data={users}
-      page={page}
-      pageSize={pageSize}
-      total={total}
-      sortKey={sortKey}
-      sortDirection={sortDir}
-    />
+    <>
+      <Heading size={'h3'} as={'h1'}>
+        Users
+      </Heading>
+      <DataTableSearchControls search={search} queryParams={stringParams} />
+      <Suspense
+        fallback={
+          <div className="p-4 flex">
+            Loading users...<Loader2 className="animate-spin"></Loader2>
+          </div>
+        }
+      >
+        <UsersDataTable
+          page={page}
+          sortKey={sortKey}
+          sortDirection={sortDir}
+          search={search}
+          queryParams={stringParams}
+        />
+      </Suspense>
+    </>
   );
 }

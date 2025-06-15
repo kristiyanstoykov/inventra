@@ -1,8 +1,9 @@
 import { db } from '@/drizzle/db';
 import { UserTable, UserRoleTable, RoleTable } from '@/drizzle/schema';
-import { eq, sql, desc, asc, inArray } from 'drizzle-orm';
+import { eq, or, like, sql, desc, asc, inArray } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
+import { empty } from '@/lib/empty';
 // import { empty } from '@/lib/empty';
 
 const columnMap = {
@@ -16,13 +17,47 @@ const columnMap = {
   vatNumber: UserTable.vatNumber,
 } as const;
 
-type SortableProductColumn = keyof typeof columnMap;
+type SortableUsersColumn = keyof typeof columnMap;
+
+export const columns = [
+  { key: 'id', label: '#', sortable: true, searchable: true },
+  { key: 'email', label: 'Email', sortable: true, searchable: true },
+  { key: 'firstName', label: 'First Name', sortable: true, searchable: true },
+  { key: 'lastName', label: 'Last Name', sortable: true, searchable: true },
+  { key: 'companyName', label: 'Company', sortable: true, searchable: true },
+  { key: 'bulstat', label: 'Bulstat', sortable: true, searchable: true },
+  { key: 'vatNumber', label: 'VAT Number', sortable: true, searchable: true },
+  { key: 'phone', label: 'Phone', sortable: true, searchable: true },
+  { key: 'address', label: 'Address', sortable: true, searchable: true },
+  { key: 'roles', label: 'Roles', sortable: false, searchable: false },
+  { key: 'createdAt', label: 'Created At', sortable: true, searchable: false },
+  { key: 'actions', label: 'Actions', sortable: false, searchable: false },
+];
+
+export type userRoleType = {
+  id: number;
+  name: string;
+};
+
+export type paginatedUserType = {
+  id: number;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  companyName: string | null;
+  bulstat: string | null;
+  vatNumber: string | null;
+  phone: string | null;
+  address: string | null;
+  createdAt: Date;
+  roles: userRoleType[];
+};
 
 // Get all products with optional sorting and pagination
 export async function getAllUsers(
   page: number = 1,
   pageSize: number = 10,
-  sortKey: SortableProductColumn | null = null,
+  sortKey: SortableUsersColumn | null = null,
   sortDir: 'asc' | 'desc' = 'asc'
 ) {
   try {
@@ -43,6 +78,33 @@ export async function getAllUsers(
   }
 }
 
+// Delete a user
+export async function deleteUser(id: number) {
+  try {
+    // Check if the user exists before attempting to delete
+    const existingUser = await db.select().from(UserTable).where(eq(UserTable.id, id)).limit(1);
+
+    if (existingUser.length === 0) {
+      throw new Error(`No user found with ID: ${id}`);
+    }
+
+    // Perform the delete operation
+    const result = await db.delete(UserTable).where(eq(UserTable.id, id));
+
+    if (empty(result)) {
+      throw new Error(`Failed to delete user with ID: ${id}`);
+    }
+
+    return true; // User deleted successfully
+  } catch (error: unknown) {
+    logger.logError(error, 'Repository: deleteUser');
+    return new AppError(
+      error instanceof Error ? error.message : `Failed to delete user with ID: ${id}`,
+      'DELETE_FAILED'
+    );
+  }
+}
+
 // Get a product by ID
 export async function getUserById(id: number) {
   try {
@@ -57,59 +119,81 @@ export async function getPaginatedUsers(
   page: number = 1,
   pageSize: number = 10,
   sortKey?: string,
-  sortDir: 'asc' | 'desc' = 'asc'
+  sortDir: 'asc' | 'desc' = 'asc',
+  search?: string
 ) {
-  // Validate sortKey
   const validSortKey = (
     sortKey && sortKey in columnMap ? sortKey : null
-  ) as SortableProductColumn | null;
+  ) as SortableUsersColumn | null;
 
-  // 1) Fetch page of products with pagination + sorting
-  const users = await getAllUsers(page, pageSize, validSortKey, sortDir);
-  if (users instanceof AppError) {
-    return users;
+  const usersOrError = await getAllUsersWithRoles(page, pageSize, validSortKey, sortDir, search);
+  if (usersOrError instanceof AppError) {
+    return usersOrError;
   }
 
-  // 2) Fetch total count
   try {
-    const [{ count }] = await db.select({ count: sql<number>`COUNT(*)` }).from(UserTable);
+    const baseCountQuery = db.select({ count: sql<number>`COUNT(*)` }).from(UserTable);
+
+    if (!empty(search)) {
+      const loweredSearch = `%${search.toLowerCase()}%`;
+      const searchableKeys = columns
+        .filter((col) => col.searchable)
+        .map((col) => col.key)
+        .filter((key): key is SortableUsersColumn => key in columnMap);
+
+      baseCountQuery.where(
+        or(...searchableKeys.map((key) => like(sql`LOWER(${columnMap[key]})`, loweredSearch)))
+      );
+    }
+
+    const [{ count }] = await baseCountQuery;
 
     return {
-      data: users,
+      data: usersOrError,
       total: count,
       page,
       pageSize,
       totalPages: Math.ceil(count / pageSize),
     };
-  } catch (error: unknown) {
-    logger.logError(error, 'Repository: getPaginatedProducts');
-    return new AppError('Failed to fetch paginated products', 'FETCH_FAILED');
+  } catch (error) {
+    logger.logError(error, 'Repository: getPaginatedUsers');
+    return new AppError('Failed to fetch paginated users', 'FETCH_FAILED');
   }
 }
 
 export async function getAllUsersWithRoles(
   page: number = 1,
   pageSize: number = 10,
-  sortKey: SortableProductColumn | null = null,
-  sortDir: 'asc' | 'desc' = 'asc'
+  sortKey: SortableUsersColumn | null = null,
+  sortDir: 'asc' | 'desc' = 'asc',
+  search?: string
 ) {
   try {
     const offset = (page - 1) * pageSize;
-
-    // Step 1: Build the base query to fetch users with optional pagination and sorting
     const query = db.select().from(UserTable).limit(pageSize).offset(offset);
 
-    // Step 2: Apply sorting if sortKey is provided
+    if (search) {
+      const loweredSearch = `%${search.toLowerCase()}%`;
+      const searchableKeys = columns
+        .filter((col) => col.searchable)
+        .map((col) => col.key)
+        .filter((key): key is SortableUsersColumn => key in columnMap);
+
+      if (searchableKeys.length > 0) {
+        query.where(
+          or(...searchableKeys.map((key) => like(sql`LOWER(${columnMap[key]})`, loweredSearch)))
+        );
+      }
+    }
+
     if (sortKey) {
       const column = columnMap[sortKey];
       query.orderBy(sortDir === 'asc' ? asc(column) : desc(column));
     }
 
-    // Step 3: Fetch users
     const users = await query;
     const userIds = users.map((u) => u.id);
 
-    // Step 4: Fetch roles for the users
     let userRoles: {
       userId: number;
       roleId: number;
@@ -120,7 +204,7 @@ export async function getAllUsersWithRoles(
       userRoles = await db
         .select({
           userId: UserRoleTable.userId,
-          roleId: UserRoleTable.roleId,
+          roleId: RoleTable.id,
           roleName: RoleTable.name,
         })
         .from(UserRoleTable)
@@ -128,25 +212,18 @@ export async function getAllUsersWithRoles(
         .where(inArray(UserRoleTable.userId, userIds));
     }
 
-    // Step 5: Group roles by userId
     const rolesByUserId = userRoles.reduce(
       (acc, curr) => {
-        if (!acc[curr.userId]) {
-          acc[curr.userId] = [];
-        }
-        acc[curr.userId].push({
-          id: curr.roleId,
-          name: curr.roleName,
-        });
+        if (!acc[curr.userId]) acc[curr.userId] = [];
+        acc[curr.userId].push({ id: curr.roleId, name: curr.roleName });
         return acc;
       },
-      {} as Record<number, Array<{ id: number; name: string }>>
+      {} as Record<number, { id: number; name: string }[]>
     );
 
-    // Step 6: Combine users with roles and return the results
     return users.map((user) => ({
       ...user,
-      roles: rolesByUserId[user.id] || [], // Add roles array for each user
+      roles: rolesByUserId[user.id] || [],
     }));
   } catch (error) {
     logger.logError(error, 'Repository: getAllUsersWithRoles');

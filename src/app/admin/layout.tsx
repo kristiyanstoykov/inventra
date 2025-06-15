@@ -17,6 +17,7 @@ const menuItems = [
       { label: 'All Products', href: '/admin/products' },
       { label: 'New Product', href: '/admin/products/new' },
       { label: 'Categories', href: '/admin/products/categories' },
+      { label: 'Attributes', href: '/admin/products/attributes' },
     ],
   },
   { label: 'Stock', href: '/admin/stock' },
