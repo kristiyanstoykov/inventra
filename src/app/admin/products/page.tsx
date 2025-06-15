@@ -1,49 +1,51 @@
-import { DataTable } from '@/components/ui/data-table/data-table';
 import { AppError } from '@/lib/appError';
 import { getPaginatedProducts } from '@/drizzle/queries/products';
+import { DataTableSearchControls } from '@/components/ui/data-table/DataTableSearchControls';
+import { ProductDataTable } from './components/product-data-table';
 
-type ProductsPageProps = {
+export default async function ProductsPage({
+  searchParams,
+}: {
   searchParams: Promise<{
     page?: string;
     sortKey?: string;
     sortDir?: 'asc' | 'desc';
+    search?: string;
   }>;
-};
-
-export default async function ProductsPage({ searchParams }: ProductsPageProps) {
+}) {
   const params = await searchParams;
+  const stringParams = new URLSearchParams({ ...params }).toString();
 
   const page = parseInt(params.page ?? '1', 10) || 1;
   const sortKey = params.sortKey ?? 'createdAt';
   const sortDir = params.sortDir === 'asc' ? 'asc' : 'desc';
+  const search = params.search ?? '';
   const productsPerPage = 50;
 
-  const result = await getPaginatedProducts(page, productsPerPage, sortKey, sortDir);
+  const result = await getPaginatedProducts(page, productsPerPage, sortKey, sortDir, search);
   if (result instanceof AppError) {
     return <div>Error: {result.toString()}</div>;
   }
 
   const { data: products, total, pageSize } = result;
+  const totalPages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+  const currentPage = Math.min(page, totalPages);
 
   return (
-    <DataTable
-      columns={[
-        { key: 'id', label: '#', sortable: true },
-        { key: 'name', label: 'Name', sortable: true },
-        { key: 'sku', label: 'SKU', sortable: true },
-        { key: 'sn', label: 'SN', sortable: true },
-        { key: 'price', label: 'Price', sortable: true },
-        { key: 'categories', label: 'Categories', sortable: false },
-        { key: 'salePrice', label: 'Sale price', sortable: true },
-        { key: 'deliveryPrice', label: 'Delivery price', sortable: true },
-        { key: 'quantity', label: 'Quantity', sortable: true },
-      ]}
-      data={products}
-      page={page}
-      pageSize={pageSize}
-      total={total}
-      sortKey={sortKey}
-      sortDirection={sortDir}
-    />
+    <>
+      <DataTableSearchControls />
+      <div className="w-full overflow-x-auto rounded-md">
+        <ProductDataTable
+          data={products}
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          sortKey={sortKey}
+          sortDirection={sortDir}
+          queryParams={stringParams}
+          currentPage={currentPage}
+        />
+      </div>
+    </>
   );
 }
