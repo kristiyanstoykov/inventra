@@ -37,6 +37,7 @@ body {
     --popover-foreground: 0 0% 10%;
 
     --primary: 210 58% 19%; /* #13324B */
+    --primary-hover: 210 68% 34%;
     --primary-foreground: 0 0% 100%; /* white */
 
     --secondary: 210 40% 96%;
@@ -87,7 +88,8 @@ body {
     --popover: 0 0% 9%;
     --popover-foreground: 0 0% 96%;
 
-    --primary: 0 0% 96%;
+    --primary: 213 25% 78%; /* #C7D6E7 */
+    --primary-hover: 213 25% 68%;
     --primary-foreground: 0 0% 8%;
 
     --secondary: 0 0% 12%;
