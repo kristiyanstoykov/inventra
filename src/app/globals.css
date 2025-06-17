@@ -52,6 +52,10 @@ body {
     --danger-hover: 0 90% 70%; /* brighter red for hover */
     --danger-foreground: 0 0% 100%; /* white */
 
+    --link: 220 100% 75%; /* lighter blue for links in dark mode */
+    --link-hover: 220 100% 40%; /* darker blue on hover */
+    --link-foreground: 0 0% 100%; /* white text on colored backgrounds */
+
     --accent: 28 95% 53%; /* #F97807 */
     --accent-foreground: 0 0% 100%;
 
@@ -103,6 +107,10 @@ body {
     --danger: 0 72% 35%; /* darker deep red */
     --danger-hover: 0 80% 45%; /* slightly brighter for hover */
     --danger-foreground: 0 0% 98%; /* near white */
+
+    --link: 220 100% 70%; /* lighter blue for links */
+    --link-hover: 220 100% 85%; /* even lighter blue on hover */
+    --link-foreground: 0 0% 10%; /* dark text on light blue backgrounds */
 
     --accent: 28 95% 53%; /* same orange */
     --accent-foreground: 0 0% 100%;

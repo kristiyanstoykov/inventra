@@ -1,7 +1,9 @@
+import { Button } from '@/components/ui/button';
 import { DataTableSearchControls } from '@/components/ui/data-table/data-table-search-controls';
 import { Heading } from '@/components/ui/heading';
 import { UsersDataTable } from '@/components/users/users-data-table';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
+import Link from 'next/link';
 import { Suspense } from 'react';
 
 export default async function UsersPage({
@@ -24,9 +26,17 @@ export default async function UsersPage({
 
   return (
     <>
-      <Heading size={'h3'} as={'h1'}>
-        Users
-      </Heading>
+      <div className="flex items-center gap-2 mb-3">
+        <Heading size={'h3'} as={'h1'} className="mr-4">
+          Users
+        </Heading>
+        <Link href="/admin/users/new">
+          <Button>
+            <Plus className="w-8 h-8" />
+            Add new user
+          </Button>
+        </Link>
+      </div>
       <DataTableSearchControls search={search} queryParams={stringParams} />
       <Suspense
         fallback={

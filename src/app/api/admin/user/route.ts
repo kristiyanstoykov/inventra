@@ -67,14 +67,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Not yet implemented.',
-      },
-      { status: 404 }
-    );
-
     const formData = await request.formData();
     const data: Record<string, any> = {};
     formData.forEach((value, key) => {

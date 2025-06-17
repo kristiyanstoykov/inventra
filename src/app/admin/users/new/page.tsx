@@ -6,7 +6,7 @@ export default async function NewUserPage() {
   return (
     <div className="flex flex-col items-center justify-center">
       <div className="mb-4 w-full max-w-[750px]">
-        <Link href="/admin/users" className="text-blue-600 hover:underline">
+        <Link href="/admin/users" className="text-link hover:link-hover">
           &larr; Go back
         </Link>
       </div>
