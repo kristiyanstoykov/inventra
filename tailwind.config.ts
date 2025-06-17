@@ -42,6 +42,11 @@ export default {
           foreground: 'hsl(var(--danger-foreground))',
           hover: 'hsl(var(--danger-hover))',
         },
+        link: {
+          DEFAULT: 'hsl(var(--link))',
+          hover: 'hsl(var(--link-hover))',
+          foreground: 'hsl(var(--link-foreground))',
+        },
         accent: {
           DEFAULT: 'hsl(var(--accent))',
           foreground: 'hsl(var(--accent-foreground))',

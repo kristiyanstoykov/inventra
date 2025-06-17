@@ -16,8 +16,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { userSchema } from './schema';
-import { createUserAction } from '@/app/admin/users/actions';
-import { empty } from '@/lib/empty';
+import { Select } from '../ui/select';
 
 export function UserAddForm() {
   const [error, setError] = useState<string>();
@@ -96,7 +95,7 @@ export function UserAddForm() {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input {...field} disabled={isPending} type="email" />
+                <Input {...field} disabled={isPending} type="email" autoComplete="off" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -109,49 +108,12 @@ export function UserAddForm() {
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input {...field} disabled={isPending} type="password" />
+                <Input {...field} disabled={isPending} type="password" autoComplete="off" />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        {/* Role dropdown and Is Company checkbox on one row */}
-        <div className="flex gap-4">
-          <FormField
-            name="role"
-            render={({ field }) => (
-              <FormItem className="flex-1">
-                <FormLabel>Role</FormLabel>
-                <FormControl>
-                  <select {...field} disabled={isPending} className="input w-full">
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                    <option value="client">Manager</option>
-                  </select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            name="isCompany"
-            render={({ field }) => (
-              <FormItem className="flex items-end flex-1">
-                <FormLabel className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={field.value}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                    disabled={isPending}
-                  />
-                  Is Company
-                </FormLabel>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
 
         {/* First Name and Last Name on one row */}
         <div className="flex gap-4">
@@ -180,6 +142,40 @@ export function UserAddForm() {
             )}
           />
         </div>
+
+        {/* Role dropdown and Is Company checkbox on one row */}
+        <div className="flex gap-4">
+          <FormField
+            name="role"
+            render={({ field }) => (
+              <FormItem className="flex-1">
+                <FormLabel>Role</FormLabel>
+                <FormControl>
+                  <Select {...field} disabled={isPending}>
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                    <option value="client">Client</option>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            name="companyName"
+            render={({ field }) => (
+              <FormItem className="flex-1">
+                <FormLabel>Company Name</FormLabel>
+                <FormControl>
+                  <Input {...field} disabled={isPending} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
         <div className="flex gap-4">
           <FormField
             name="phone"
@@ -207,19 +203,6 @@ export function UserAddForm() {
             )}
           />
         </div>
-
-        <FormField
-          name="companyName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Company Name</FormLabel>
-              <FormControl>
-                <Input {...field} disabled={isPending} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         {/* BULSTAT and VAT Number on one row */}
         <div className="flex gap-4">

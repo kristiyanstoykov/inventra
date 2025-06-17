@@ -78,12 +78,12 @@ export function UsersTableBody({
     });
   }
 
-  if (!users.length) {
+  if (empty(users)) {
     return (
       <tbody>
         <tr>
           <td colSpan={columns.length} className="px-4 py-4 text-center text-muted-foreground">
-            No categories found.
+            No users found.
           </td>
         </tr>
       </tbody>
@@ -98,10 +98,7 @@ export function UsersTableBody({
         </div>
       )}
       {users.map((user, i) => (
-        <tr
-          key={i}
-          className="block md:table-row border border-border rounded-lg md:hover:bg-muted/80 mb-4 md:mb-0"
-        >
+        <tr key={i} className="block md:table-row border border-border rounded-lg mb-4 md:mb-0">
           {columns
             .filter((col) => col.key !== 'actions')
             .map((col) => (

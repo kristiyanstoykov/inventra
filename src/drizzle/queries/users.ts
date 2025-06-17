@@ -4,6 +4,7 @@ import { eq, or, like, sql, desc, asc, inArray } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
 import { empty } from '@/lib/empty';
+import { hashPassword, generateSalt } from '@/auth/core/passwordHasher';
 // import { empty } from '@/lib/empty';
 
 const columnMap = {
@@ -20,7 +21,7 @@ const columnMap = {
 type SortableUsersColumn = keyof typeof columnMap;
 
 export const columns = [
-  { key: 'id', label: '#', sortable: true, searchable: true },
+  { key: 'id', label: 'ID', sortable: true, searchable: true },
   { key: 'email', label: 'Email', sortable: true, searchable: true },
   { key: 'firstName', label: 'First Name', sortable: true, searchable: true },
   { key: 'lastName', label: 'Last Name', sortable: true, searchable: true },
@@ -78,6 +79,46 @@ export async function getAllUsers(
   }
 }
 
+// Create a new user
+
+export async function createUser(userData: {
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  companyName?: string | null;
+  bulstat?: string | null;
+  vatNumber?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  password: string;
+}) {
+  try {
+    const salt = generateSalt();
+    const passwordHash = await hashPassword(userData.password, salt);
+
+    const [user] = await db
+      .insert(UserTable)
+      .values({
+        email: userData.email,
+        firstName: userData.firstName ?? null,
+        lastName: userData.lastName ?? null,
+        companyName: userData.companyName ?? null,
+        bulstat: userData.bulstat ?? null,
+        vatNumber: userData.vatNumber ?? null,
+        phone: userData.phone ?? null,
+        address: userData.address ?? null,
+        password: passwordHash,
+        salt: salt,
+      })
+      .$returningId();
+
+    return user;
+  } catch (error) {
+    logger.logError(error, 'Repository: createUser');
+    return new AppError('Failed to create user', 'CREATE_FAILED');
+  }
+}
+
 // Delete a user
 export async function deleteUser(id: number) {
   try {
@@ -108,7 +149,12 @@ export async function deleteUser(id: number) {
 // Get a product by ID
 export async function getUserById(id: number) {
   try {
-    return await db.select().from(UserTable).where(eq(UserTable.id, id)).limit(1);
+    const result = await db.select().from(UserTable).where(eq(UserTable.id, id)).limit(1);
+
+    if (!result || result.length === 0) {
+      return new AppError(`No user found with ID: ${id}`);
+    }
+    return result[0];
   } catch (error) {
     logger.logError(error, 'Repository: getProductById');
     return new AppError(`Failed to fetch product with ID: ${id}`);
