@@ -12,16 +12,41 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { userSchema } from './schema';
 import { Select } from '../ui/select';
+import { Loader2 } from 'lucide-react';
+import { RoleTable } from '@/drizzle/schema';
+import { InferSelectModel } from 'drizzle-orm';
+
+type Role = InferSelectModel<typeof RoleTable>;
 
 export function UserAddForm() {
   const [error, setError] = useState<string>();
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  const [loadingRoles, setLoadingRoles] = useState(true);
+  const [roles, setRoles] = useState<Role[]>([]);
+  useEffect(() => {
+    fetch('/api/admin/roles')
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || 'Failed to fetch roles');
+        }
+        setRoles(data.data);
+      })
+      .catch((err) => {
+        setRoles([]);
+        setError('Failed to load roles: ' + (err.message || 'Unknown error'));
+      })
+      .finally(() => {
+        setLoadingRoles(false);
+      });
+  }, []);
 
   const form = useForm<z.infer<typeof userSchema>>({
     defaultValues: {
@@ -52,10 +77,8 @@ export function UserAddForm() {
         // Send data as FormData to match the API expectations
         const formData = new FormData();
         Object.entries(values).forEach(([key, value]) => {
-          // Convert boolean to string for FormData
-          if (typeof value === 'boolean') {
-            formData.append(key, value ? 'true' : 'false');
-          } else if (typeof value === 'undefined' || value === undefined || value === null) {
+          // Convert boolean to string for FormData);
+          if (typeof value === 'undefined' || value === undefined || value === null) {
             // Skip undefined/null values
             return;
           } else {
@@ -71,15 +94,17 @@ export function UserAddForm() {
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.message || 'Failed to add user.');
+          throw new Error(data.message + data.errors || 'Failed to add user.');
         }
 
         form.reset();
         router.refresh();
         toast.success('User added successfully');
-      } catch (err: any) {
-        setError(err.message || 'An unexpected error occurred.');
-        toast.error('There was an error adding the user: ' + (err.message || 'Unexpected error.'));
+      } catch (error) {
+        // Simulate NextResponse.json error handling in client-side context
+        const message = error instanceof Error ? error.message : 'Internal server error';
+        setError(message);
+        toast.error('There was an error adding the user: ' + message);
       }
     });
   }
@@ -146,16 +171,27 @@ export function UserAddForm() {
         {/* Role dropdown and Is Company checkbox on one row */}
         <div className="flex gap-4">
           <FormField
-            name="role"
+            name="roleId"
             render={({ field }) => (
               <FormItem className="flex-1">
                 <FormLabel>Role</FormLabel>
                 <FormControl>
-                  <Select {...field} disabled={isPending}>
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                    <option value="client">Client</option>
-                  </Select>
+                  {loadingRoles ? (
+                    <div className="flex items-center h-9 px-3 border border-border-input rounded-md bg-input">
+                      <Loader2 className="animate-spin h-4 w-4 text-muted-foreground" />
+                      <span className="ml-2 text-sm text-muted-foreground">Loading roles...</span>
+                    </div>
+                  ) : (
+                    <Select {...field} disabled={isPending}>
+                      <option value="">Select a role</option>
+                      {Array.isArray(roles) &&
+                        roles.map((role) => (
+                          <option key={String(role.id)} value={String(role.id)}>
+                            {role.name as unknown as string}
+                          </option>
+                        ))}
+                    </Select>
+                  )}
                 </FormControl>
                 <FormMessage />
               </FormItem>

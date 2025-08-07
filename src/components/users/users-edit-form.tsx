@@ -12,17 +12,22 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { userSchema } from './schema';
+import { userEditSchema, userSchema } from './schema';
 import { Select } from '../ui/select';
+import { Loader2 } from 'lucide-react';
+import { InferSelectModel } from 'drizzle-orm';
+import { RoleTable } from '@/drizzle/schema';
+
+type Role = InferSelectModel<typeof RoleTable>;
 
 type EditUserFormProps = {
   user: {
     id: number;
     email: string;
-    role: 'user' | 'admin' | 'client' | 'customer';
+    roleId: number;
     isCompany?: boolean;
     firstName?: string;
     lastName?: string;
@@ -41,20 +46,39 @@ export function UserEditForm({ user }: EditUserFormProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
+  const [loadingRoles, setLoadingRoles] = useState(true);
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  useEffect(() => {
+    fetch('/api/admin/roles')
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || 'Failed to fetch roles');
+        }
+        setRoles(data.data);
+      })
+      .catch((err) => {
+        setRoles([]);
+        setError('Failed to load roles: ' + (err.message || 'Unknown error'));
+      })
+      .finally(() => {
+        setLoadingRoles(false);
+      });
+  }, []);
+
   const form = useForm<z.infer<typeof userSchema>>({
     defaultValues: {
       email: user.email,
       password: '',
-      role: ['user', 'admin', 'client'].includes(user.role)
-        ? (user.role as 'user' | 'admin' | 'client')
-        : 'client',
-      firstName: user.firstName,
-      lastName: user.lastName,
+      roleId: String(user.roleId),
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
       companyName: user.companyName || '',
-      bulstat: user.bulstat,
-      vatNumber: user.vatNumber,
-      phone: user.phone,
-      address: user.address,
+      bulstat: user.bulstat || '',
+      vatNumber: user.vatNumber || '',
+      phone: user.phone || '',
+      address: user.address || '',
     },
   });
 
@@ -62,19 +86,16 @@ export function UserEditForm({ user }: EditUserFormProps) {
     setError(undefined);
     startTransition(async () => {
       try {
-        // Validate input using userSchema before sending
-        const parsedValues = userSchema.safeParse(values);
+        const parsedValues = userEditSchema.safeParse({ id: user.id.toString(), ...values });
+        console.log('Parsed values:', parsedValues);
         if (!parsedValues.success) {
           throw new Error('Invalid input. Please check the form fields.');
         }
 
-        // Send data as FormData to match the API expectations
         const formData = new FormData();
         Object.entries(values).forEach(([key, value]) => {
-          // Convert boolean to string for FormData
-          if (typeof value === 'boolean') {
-            formData.append(key, value ? 'true' : 'false');
-          } else if (typeof value === 'undefined' || value === undefined || value === null) {
+          // Convert boolean to string for FormData);
+          if (typeof value === 'undefined' || value === undefined || value === null) {
             // Skip undefined/null values
             return;
           } else {
@@ -82,6 +103,7 @@ export function UserEditForm({ user }: EditUserFormProps) {
           }
         });
 
+        formData.append('id', user.id.toString());
         const res = await fetch('/api/admin/user', {
           method: 'PUT',
           body: formData,
@@ -90,15 +112,16 @@ export function UserEditForm({ user }: EditUserFormProps) {
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.message || 'Failed to add user.');
+          throw new Error(data.message || 'Failed to update user.');
         }
 
         form.reset();
         router.refresh();
-        toast.success('User added successfully');
+        toast.success('User updated successfully');
       } catch (err: any) {
-        setError(err.message || 'An unexpected error occurred.');
-        toast.error('There was an error adding the user: ' + (err.message || 'Unexpected error.'));
+        const message = err?.message || 'An unexpected error occurred.';
+        setError(message);
+        toast.error('There was an error updating the user: ' + message);
       }
     });
   }
@@ -134,7 +157,6 @@ export function UserEditForm({ user }: EditUserFormProps) {
           )}
         />
 
-        {/* First Name and Last Name on one row */}
         <div className="flex gap-4">
           <FormField
             name="firstName"
@@ -162,19 +184,28 @@ export function UserEditForm({ user }: EditUserFormProps) {
           />
         </div>
 
-        {/* Role dropdown and Is Company checkbox on one row */}
         <div className="flex gap-4">
           <FormField
-            name="role"
+            name="roleId"
             render={({ field }) => (
               <FormItem className="flex-1">
                 <FormLabel>Role</FormLabel>
                 <FormControl>
-                  <Select {...field} disabled={isPending}>
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                    <option value="client">Client</option>
-                  </Select>
+                  {loadingRoles ? (
+                    <div className="flex items-center h-9 px-3 border border-border-input rounded-md bg-input">
+                      <Loader2 className="animate-spin h-4 w-4 text-muted-foreground" />
+                      <span className="ml-2 text-sm text-muted-foreground">Loading roles...</span>
+                    </div>
+                  ) : (
+                    <Select {...field} disabled={isPending}>
+                      <option value="">Select a role</option>
+                      {roles.map((role) => (
+                        <option key={role.id} value={String(role.id)}>
+                          {role.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -208,7 +239,6 @@ export function UserEditForm({ user }: EditUserFormProps) {
               </FormItem>
             )}
           />
-
           <FormField
             name="address"
             render={({ field }) => (
@@ -223,7 +253,6 @@ export function UserEditForm({ user }: EditUserFormProps) {
           />
         </div>
 
-        {/* BULSTAT and VAT Number on one row */}
         <div className="flex gap-4">
           <FormField
             name="bulstat"

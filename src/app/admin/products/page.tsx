@@ -3,6 +3,7 @@ import { ProductDataTable } from '../../../components/products/product-data-tabl
 import { Heading } from '@/components/ui/heading';
 import { Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
+import { DataTableSearchControlsClient } from '@/components/ui/data-table/data-table-search-controls-client';
 
 export default async function ProductsPage({
   searchParams,
@@ -28,6 +29,7 @@ export default async function ProductsPage({
         Products
       </Heading>
       <DataTableSearchControls search={search} queryParams={stringParams} />
+      {/* <DataTableSearchControlsClient /> */}
       <Suspense
         fallback={
           <div className="p-4 flex">

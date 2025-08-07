@@ -5,6 +5,7 @@ import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
 import { empty } from '@/lib/empty';
 import { hashPassword, generateSalt } from '@/auth/core/passwordHasher';
+import { getUserRoleIdByUserId } from './roles';
 // import { empty } from '@/lib/empty';
 
 const columnMap = {
@@ -80,7 +81,6 @@ export async function getAllUsers(
 }
 
 // Create a new user
-
 export async function createUser(userData: {
   email: string;
   firstName?: string | null;
@@ -112,10 +112,72 @@ export async function createUser(userData: {
       })
       .$returningId();
 
-    return user;
+    return user.id;
   } catch (error) {
     logger.logError(error, 'Repository: createUser');
     return new AppError('Failed to create user', 'CREATE_FAILED');
+  }
+}
+
+// Update an existing user
+export async function updateUser(
+  id: number,
+  userData: {
+    email?: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    companyName?: string | null;
+    bulstat?: string | null;
+    vatNumber?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    password?: string;
+  }
+) {
+  try {
+    // Check if the user exists
+    const existingUser = await db.select().from(UserTable).where(eq(UserTable.id, id)).limit(1);
+    if (existingUser.length === 0) {
+      return new AppError(`No user found with ID: ${id}`, 'NOT_FOUND');
+    }
+
+    const updateData: Record<string, any> = {};
+
+    if (userData.email !== undefined) updateData.email = userData.email;
+    if (userData.firstName !== undefined)
+      updateData.firstName = userData.firstName === '' ? null : userData.firstName;
+    if (userData.lastName !== undefined)
+      updateData.lastName = userData.lastName === '' ? null : userData.lastName;
+    if (userData.companyName !== undefined)
+      updateData.companyName = userData.companyName === '' ? null : userData.companyName;
+    if (userData.bulstat !== undefined)
+      updateData.bulstat = userData.bulstat === '' ? null : userData.bulstat;
+    if (userData.vatNumber !== undefined)
+      updateData.vatNumber = userData.vatNumber === '' ? null : userData.vatNumber;
+    if (userData.phone !== undefined)
+      updateData.phone = userData.phone === '' ? null : userData.phone;
+    if (userData.address !== undefined)
+      updateData.address = userData.address === '' ? null : userData.address;
+
+    if (userData.password !== undefined && userData.password !== null && userData.password !== '') {
+      const salt = generateSalt();
+      const passwordHash = await hashPassword(userData.password, salt);
+      updateData.password = passwordHash;
+      updateData.salt = salt;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return new AppError('No fields to update', 'NO_UPDATE_FIELDS');
+    }
+    console.log('Updating user with ID:', id);
+    console.log('User data to update:', userData);
+
+    const result = await db.update(UserTable).set(updateData).where(eq(UserTable.id, id));
+    return true;
+  } catch (error) {
+    console.log('Error updating user:', error);
+    logger.logError(error, 'Repository: updateUser');
+    return new AppError('Failed to update user', 'UPDATE_FAILED');
   }
 }
 
@@ -154,7 +216,13 @@ export async function getUserById(id: number) {
     if (!result || result.length === 0) {
       return new AppError(`No user found with ID: ${id}`);
     }
-    return result[0];
+    let user = result[0];
+    const userRole = await getUserRoleIdByUserId(result[0].id);
+    if (!(userRole instanceof AppError)) {
+      user = { ...user, roleId: userRole };
+    }
+
+    return user;
   } catch (error) {
     logger.logError(error, 'Repository: getProductById');
     return new AppError(`Failed to fetch product with ID: ${id}`);

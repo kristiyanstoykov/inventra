@@ -1,6 +1,7 @@
 import { getUserFromSession } from '@/auth/core/session';
-import { userSchema } from '@/components/users/schema';
-import { deleteUser } from '@/drizzle/queries/users';
+import { userEditSchema, userSchema } from '@/components/users/schema';
+import { addRoleToUser, updateUserRole } from '@/drizzle/queries/roles';
+import { createUser, deleteUser, updateUser } from '@/drizzle/queries/users';
 import { AppError } from '@/lib/appError';
 import { empty } from '@/lib/empty';
 import { NextRequest, NextResponse } from 'next/server';
@@ -57,44 +58,93 @@ export async function POST(request: NextRequest) {
     const cookies = request.cookies;
     const user = await getUserFromSession(cookies);
 
-    if (empty(user) || user.role !== 'admin') {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Unauthorized: No sufficient privileges to create users.',
-        },
-        { status: 401 }
-      );
+    if (!user || user.role !== 'admin') {
+      return NextResponse.json({ success: false, message: 'Unauthorized.' }, { status: 401 });
     }
 
     const formData = await request.formData();
-    const data: Record<string, any> = {};
-    formData.forEach((value, key) => {
-      data[key] = value;
-    });
 
-    // Validate input using userSchema
-    const parseResult = userSchema.safeParse(data);
-    if (!parseResult.success) {
+    const parsed = userSchema.safeParse(formData);
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, message: 'Invalid user data.', errors: parseResult.error.flatten() },
+        {
+          success: false,
+          message: 'Invalid input: ' + JSON.stringify(parsed.error),
+          errors: JSON.stringify(parsed.error),
+        },
         { status: 400 }
       );
     }
 
-    // Replace this with your actual user creation logic
-    const result = new AppError('This action is not implemented yet.', 'context');
+    const data = parsed.data;
+    const result = await createUser(data);
     if (result instanceof AppError) {
       return NextResponse.json({ success: false, message: result.toString() }, { status: 500 });
     }
 
-    // Optionally revalidate path or perform other actions
+    const newUserId = result;
+    // Insert user role connection
+    if (data.roleId) {
+      await addRoleToUser(newUserId, parseInt(data.roleId.toString()));
+    }
 
-    return NextResponse.json(
-      { success: true, message: 'User created successfully.' },
-      { status: 201 }
-    );
-  } catch {
+    return NextResponse.json({ success: true, message: 'User created.' }, { status: 201 });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ success: false, message: 'Unexpected error.' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const cookies = request.cookies;
+    const user = await getUserFromSession(cookies);
+
+    if (!user || user.role !== 'admin') {
+      return NextResponse.json({ success: false, message: 'Unauthorized.' }, { status: 401 });
+    }
+
+    const formData = await request.formData();
+    const dataObj: Record<string, any> = {};
+    formData.forEach((value, key) => {
+      dataObj[key] = value;
+    });
+    const parsed = userEditSchema.safeParse(dataObj);
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Invalid input: ' + JSON.stringify(parsed.error),
+          errors: JSON.stringify(parsed.error),
+        },
+        { status: 400 }
+      );
+    }
+
+    const data = parsed.data;
+    if (!data.id) {
+      return NextResponse.json(
+        { success: false, message: 'User ID is required for update.' },
+        { status: 400 }
+      );
+    }
+
+    // You need to implement updateUser in your queries/users file
+    const { id, roleId, ...userData } = data;
+    const result = await updateUser(Number(id), userData);
+
+    if (result instanceof AppError) {
+      return NextResponse.json({ success: false, message: result.toString() }, { status: 500 });
+    }
+
+    // Optionally update user role if provided
+    if (roleId) {
+      await updateUserRole(Number(id), Number(roleId));
+    }
+
+    return NextResponse.json({ success: true, message: 'User updated.' }, { status: 200 });
+  } catch (err) {
+    console.error(err);
     return NextResponse.json({ success: false, message: 'Unexpected error.' }, { status: 500 });
   }
 }

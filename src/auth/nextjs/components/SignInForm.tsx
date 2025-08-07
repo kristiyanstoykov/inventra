@@ -28,8 +28,6 @@ export function SignInForm() {
 
   async function onSubmit(data: z.infer<typeof signInSchema>) {
     const { ip, userAgent } = await getIpAndUserAgent();
-    console.log('User ip:', ip);
-    console.log('User Agent:', userAgent);
 
     const error = await signIn(data);
     setError(error);
