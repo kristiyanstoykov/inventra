@@ -20,6 +20,6 @@ export class AppError extends Error {
   }
 
   toString() {
-    return `${this.name}: ${this.message} (Code: ${this.code})`;
+    return `${this.message} (Code: ${this.code})`;
   }
 }

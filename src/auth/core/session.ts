@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
-import { db } from '@/drizzle/db';
-import { SessionTable } from '@/drizzle/schema';
-import { userRoles } from '@/drizzle/schema';
+import { db } from '@/db/drizzle/db';
+import { SessionTable } from '@/db/drizzle/schema';
+import { userRoles } from '@/db/drizzle/schema';
 import { z } from 'zod';
 import crypto from 'crypto';
 
@@ -67,17 +67,25 @@ export async function createUserSession(
   setCookie(sessionToken, cookies);
 }
 
-export async function updateUserSessionData(user: UserSession, cookies: Pick<Cookies, 'get'>) {
+export async function updateUserSessionData(
+  user: UserSession,
+  cookies: Pick<Cookies, 'get'>
+) {
   const sessionToken = cookies.get(COOKIE_SESSION_KEY)?.value;
   if (!sessionToken) return;
 
   const session = await getSessionByToken(sessionToken);
   if (!session) return;
 
-  await db.update(SessionTable).set({ role: user.role }).where(eq(SessionTable.id, session.id));
+  await db
+    .update(SessionTable)
+    .set({ role: user.role })
+    .where(eq(SessionTable.id, session.id));
 }
 
-export async function updateUserSessionExpiration(cookies: Pick<Cookies, 'get' | 'set'>) {
+export async function updateUserSessionExpiration(
+  cookies: Pick<Cookies, 'get' | 'set'>
+) {
   const sessionToken = cookies.get(COOKIE_SESSION_KEY)?.value;
   if (!sessionToken) return;
 
@@ -94,7 +102,9 @@ export async function updateUserSessionExpiration(cookies: Pick<Cookies, 'get' |
   setCookie(sessionToken, cookies);
 }
 
-export async function removeUserFromSession(cookies: Pick<Cookies, 'get' | 'delete'>) {
+export async function removeUserFromSession(
+  cookies: Pick<Cookies, 'get' | 'delete'>
+) {
   const sessionToken = cookies.get(COOKIE_SESSION_KEY)?.value;
   if (!sessionToken) return;
 

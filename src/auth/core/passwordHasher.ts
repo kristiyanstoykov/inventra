@@ -30,3 +30,7 @@ export async function comparePasswords({
 export function generateSalt() {
   return crypto.randomBytes(16).toString('hex').normalize();
 }
+
+export function generateRandomPassword(length: number = 32): string {
+  return crypto.randomBytes(length).toString('base64').slice(0, length);
+}

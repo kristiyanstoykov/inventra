@@ -9,10 +9,11 @@ export default function NotFound() {
         <h1 className="text-5xl font-bold mb-4 text-primary">404</h1>
         <h2 className="text-2xl font-semibold mb-2">Page Not Found</h2>
         <p className="mb-6 text-muted-foreground">
-          Sorry, the page you are looking for does not exist or you do not have admin access.
+          Sorry, the page you are looking for does not exist or you do not have
+          admin access.
         </p>
         <Link href="/admin">
-          <Button>Go to Admin Dashboard</Button>
+          <Button variant={'default'}>Go to Admin Dashboard</Button>
         </Link>
       </div>
     </div>

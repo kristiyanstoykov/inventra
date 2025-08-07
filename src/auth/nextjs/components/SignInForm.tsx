@@ -15,9 +15,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { signInSchema } from '../schemas';
-import { getIpAndUserAgent } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 export function SignInForm() {
+  const router = useRouter();
   const [error, setError] = useState<string>();
   const form = useForm<z.infer<typeof signInSchema>>({
     defaultValues: {
@@ -27,10 +28,13 @@ export function SignInForm() {
   });
 
   async function onSubmit(data: z.infer<typeof signInSchema>) {
-    const { ip, userAgent } = await getIpAndUserAgent();
-
     const error = await signIn(data);
-    setError(error);
+    if (error instanceof Error) {
+      setError(error.message);
+      return;
+    }
+
+    router.refresh();
   }
 
   return (

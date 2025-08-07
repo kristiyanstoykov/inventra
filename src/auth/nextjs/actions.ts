@@ -3,21 +3,28 @@
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { signInSchema, signUpSchema } from './schemas';
-import { db } from '@/drizzle/db';
-import { UserTable } from '@/drizzle/schema';
+import { db } from '@/db/drizzle/db';
+import { UserTable } from '@/db/drizzle/schema';
 import { eq } from 'drizzle-orm';
-import { comparePasswords, generateSalt, hashPassword } from '../core/passwordHasher';
+import {
+  comparePasswords,
+  generateSalt,
+  hashPassword,
+} from '../core/passwordHasher';
 import { cookies } from 'next/headers';
 import { createUserSession, removeUserFromSession } from '../core/session';
 import { empty } from '@/lib/empty';
 import { getClientInfo } from '@/lib/getClientInfo';
+import { AppError } from '@/lib/appError';
 
-export async function signIn(unsafeData: z.infer<typeof signInSchema>) {
+export async function signIn(
+  unsafeData: z.infer<typeof signInSchema>
+): Promise<true | AppError> {
   const { success, data } = signInSchema.safeParse(unsafeData);
 
   const { ip, userAgent } = await getClientInfo();
 
-  if (!success) return 'Unable to log you in';
+  if (!success) return new AppError('Unable to log you in');
 
   const user = await db.query.UserTable.findFirst({
     columns: { password: true, salt: true, id: true, email: true, role: true },
@@ -25,7 +32,9 @@ export async function signIn(unsafeData: z.infer<typeof signInSchema>) {
   });
 
   if (user == null || user.password == null || user.salt == null) {
-    return 'No account exists for this email or password is wrong.';
+    return new AppError(
+      'No account exists for this email or password is wrong.'
+    );
   }
 
   const isCorrectPassword = await comparePasswords({
@@ -34,7 +43,7 @@ export async function signIn(unsafeData: z.infer<typeof signInSchema>) {
     salt: user.salt,
   });
 
-  if (!isCorrectPassword) return 'Unable to log you in';
+  if (!isCorrectPassword) return new AppError('Unable to log you in');
 
   const sessionUser = {
     id: user.id,
@@ -43,7 +52,7 @@ export async function signIn(unsafeData: z.infer<typeof signInSchema>) {
 
   await createUserSession(sessionUser, await cookies(), ip, userAgent);
 
-  redirect('/');
+  return true;
 }
 
 export async function signUp(unsafeData: z.infer<typeof signUpSchema>) {

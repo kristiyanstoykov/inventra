@@ -1,44 +1,83 @@
-import { DataTable } from '@/components/ui/data-table/data-table';
+import { Heading } from '@/components/ui/heading';
+import { Suspense } from 'react';
 import { AppError } from '@/lib/appError';
-import { getPaginatedOrders } from '@/drizzle/queries/orders';
+import { DataTableSearchClient } from '@/components/dataTable/DataTableSearchClient';
+import { Metadata } from 'next';
+import { OrdersTable, SkeletonOrdersTable } from '@/components/orders/table';
+import { getPaginatedOrders } from '@/db/drizzle/queries/orders';
 
-type OrdersPageProps = {
-  searchParams: Promise<{
-    page?: string;
-    sortKey?: string;
-    sortDir?: 'asc' | 'desc';
-  }>;
+export const metadata: Metadata = {
+  title: 'All Orders',
 };
 
-export default async function OrdersPage({ searchParams }: OrdersPageProps) {
+type SearchParams = Promise<{
+  page?: string;
+  sort?: `${string}.${'asc' | 'desc'}`;
+  search?: string;
+  perPage?: string;
+}>;
+
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="m-4">
+          <Heading size={'h3'} as={'h1'} className="mb-4">
+            Orders
+          </Heading>
+          <DataTableSearchClient />
+          <SkeletonOrdersTable />
+        </div>
+      }
+    >
+      <SuspendedPage searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
+  const pageNum = parseInt(params.page ?? '1', 10) || 1;
+  const perPage = parseInt(params.perPage ?? '10', 10) || 10;
+  const [sortKey = 'id', sortDir = 'asc'] =
+    (params.sort?.split('.') as [string, 'asc' | 'desc']) ?? [];
+  const search = params.search ?? '';
 
-  const page = parseInt(params.page ?? '1', 10) || 1;
-  const sortKey = params.sortKey ?? 'id';
-  const sortDir = params.sortDir === 'asc' ? 'asc' : 'desc';
-  const ordersPerPage = 10;
-
-  const result = await getPaginatedOrders(page, ordersPerPage, sortKey, sortDir);
+  const result = await getPaginatedOrders(pageNum, perPage, sortKey, sortDir);
   if (result instanceof AppError) {
-    return <div>Error: {result.toString()}</div>;
+    return (
+      <div className="p-4">
+        <Heading size={'h3'} as={'h1'}>
+          Error loading orders
+        </Heading>
+        <p>{result.message}</p>
+      </div>
+    );
   }
 
-  const { data: orders, total, pageSize } = result;
+  const { data, total, page, pageSize, totalPages } = result;
 
   return (
-    <DataTable
-      columns={[
-        { key: 'id', label: '#', sortable: true },
-        { key: 'clientNames', label: 'Client', sortable: true },
-        { key: 'status', label: 'Status', sortable: true },
-        { key: 'createdAt', label: 'Created at', sortable: true },
-      ]}
-      data={orders}
-      page={page}
-      pageSize={pageSize}
-      total={total}
-      sortKey={sortKey}
-      sortDirection={sortDir}
-    />
+    <div className="m-4">
+      <Heading size={'h3'} as={'h1'} className="mb-4">
+        Orders
+      </Heading>
+      <div className="">
+        <DataTableSearchClient />
+        <Suspense fallback={<SkeletonOrdersTable />}>
+          <OrdersTable
+            orders={data}
+            total={total}
+            page={page}
+            pageSize={pageSize}
+            totalPages={totalPages}
+          />
+        </Suspense>
+      </div>
+    </div>
   );
 }
