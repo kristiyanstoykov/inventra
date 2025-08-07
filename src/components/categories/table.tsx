@@ -14,6 +14,9 @@ import { useRouter, usePathname } from 'next/navigation';
 // import { toast } from 'sonner';
 // import { AppError } from '@/lib/appError';
 import { ActionButton } from '../ActionButton';
+import { AppError } from '@/lib/appError';
+import { toast } from 'sonner';
+import { deleteCategoryAction } from '@/lib/actions/categories';
 
 type Categories = InferSelectModel<typeof ProductCategoryTable>;
 
@@ -22,17 +25,13 @@ function getColumns(): ColumnDef<Categories>[] {
     {
       accessorKey: 'id',
       accessorFn: (row) => row.id,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="ID" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="ID" column={column} />,
       cell: ({ row }) => row.original.id,
     },
     {
       accessorKey: 'name',
       accessorFn: (row) => row.name,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="Name" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="Name" column={column} />,
       cell: ({ row }) => {
         const name = row.original.name;
 
@@ -46,9 +45,7 @@ function getColumns(): ColumnDef<Categories>[] {
     {
       accessorKey: 'slug',
       accessorFn: (row) => row.slug,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="Slug" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="Slug" column={column} />,
       cell: ({ row }) => {
         const slug = row.original.slug;
         return (
@@ -61,9 +58,7 @@ function getColumns(): ColumnDef<Categories>[] {
     {
       accessorKey: 'createdAt',
       accessorFn: (row) => row.createdAt,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="Created on" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="Created on" column={column} />,
       cell: ({ row }) => {
         const date = row.original.createdAt;
         const day = String(date.getDate()).padStart(2, '0');
@@ -130,26 +125,18 @@ function ActionCell({ id }: { id: number }) {
   const pathname = usePathname();
 
   async function handleDelete(id: number) {
-    const data = {
-      error: false,
-      message: `Successfully deleted category #${id}! NOTE: THIS IS NOT YET IMPLEMENTED`,
-    };
-
-    // const result = await deleteProductAction(id);
-    // if (result instanceof AppError) {
-    //   data.error = true;
-    //   data.message = result.toString();
-    //   return data;
-    // }
-
-    // if (!result.success) {
-    //   toast.error('Unknown error occurred while deleting product');
-    //   data.error = true;
-    //   data.message = 'Unknown error occurred while deleting product';
-    //   return data;
-    // }
-
-    return data;
+    const result = await deleteCategoryAction(id);
+    if (result instanceof AppError) {
+      return {
+        error: true,
+        message: result.toString(),
+      };
+    }
+    if (result.error) {
+      toast.error(result.message);
+      return result;
+    }
+    return result;
   }
 
   return (

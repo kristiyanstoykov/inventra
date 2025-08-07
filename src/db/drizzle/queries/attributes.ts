@@ -135,27 +135,14 @@ export async function getPaginatedAttributes(
     };
   } catch (error) {
     logger.logError(error, 'Repository: getPaginatedAttributes');
-    const message =
-      error instanceof Error
-        ? error.message
-        : 'Failed to fetch paginated attributes';
-    return new AppError(
-      `Failed to fetch paginated attributes: ${message}`,
-      'FETCH_FAILED'
-    );
+    const message = error instanceof Error ? error.message : 'Failed to fetch paginated attributes';
+    return new AppError(`Failed to fetch paginated attributes: ${message}`, 'FETCH_FAILED');
   }
 }
 
-export async function createAttribute(
-  name: string,
-  value: string,
-  unit?: string
-) {
+export async function createAttribute(name: string, value: string, unit?: string) {
   try {
-    const [result] = await db
-      .insert(AttributeTable)
-      .values({ name, value, unit })
-      .$returningId();
+    const [result] = await db.insert(AttributeTable).values({ name, value, unit }).$returningId();
     return result?.id ?? null;
   } catch (error) {
     logger.logError(error, 'Repository: createAttribute');
@@ -175,15 +162,18 @@ export async function deleteAttribute(id: number) {
       throw new Error(`Attribute with ID ${id} not found`);
     }
 
-    const result = await db
-      .delete(AttributeTable)
-      .where(eq(AttributeTable.id, id));
+    const result = await db.delete(AttributeTable).where(eq(AttributeTable.id, id));
 
     if (empty(result)) {
       throw new Error(`Failed to delete attribute with ID ${id}`);
     }
 
-    return true;
+    return {
+      error: false,
+      message: `Successfully deleted attribute #${id} ${existing[0].name} ${existing[0].value}${
+        existing[0].unit ?? ''
+      }`,
+    };
   } catch (error: unknown) {
     logger.logError(error, 'Repository: deleteAttribute');
     return new AppError(
@@ -195,27 +185,16 @@ export async function deleteAttribute(id: number) {
 
 export async function getAttributeById(id: number) {
   try {
-    const result = await db
-      .select()
-      .from(AttributeTable)
-      .where(eq(AttributeTable.id, id))
-      .limit(1);
+    const result = await db.select().from(AttributeTable).where(eq(AttributeTable.id, id)).limit(1);
 
-    return (
-      result[0] ?? new AppError(`Attribute with ID ${id} not found`, '404')
-    );
+    return result[0] ?? new AppError(`Attribute with ID ${id} not found`, '404');
   } catch (error) {
     logger.logError(error, 'Repository: getAttributeById');
     return new AppError(`Failed to fetch attribute with ID: ${id}`);
   }
 }
 
-export async function updateAttributeById(
-  id: number,
-  name: string,
-  value: string,
-  unit?: string
-) {
+export async function updateAttributeById(id: number, name: string, value: string, unit?: string) {
   try {
     const result = await db
       .update(AttributeTable)

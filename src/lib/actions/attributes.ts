@@ -3,11 +3,9 @@
 import { z } from 'zod';
 import { attributeSchema } from '../schema/attributes';
 import { AppError } from '../appError';
-import { createAttribute } from '@/db/drizzle/queries/attributes';
+import { createAttribute, deleteAttribute } from '@/db/drizzle/queries/attributes';
 
-export async function createAttributeAction(
-  unsafeData: z.infer<typeof attributeSchema>
-) {
+export async function createAttributeAction(unsafeData: z.infer<typeof attributeSchema>) {
   const data = attributeSchema.safeParse(unsafeData);
 
   const error = {
@@ -43,11 +41,7 @@ export async function createAttributeAction(
     };
   }
 
-  const result = await createAttribute(
-    data.data.name,
-    data.data.value.toString(),
-    data.data.unit
-  );
+  const result = await createAttribute(data.data.name, data.data.value.toString(), data.data.unit);
 
   if (result instanceof AppError) {
     return {
@@ -72,4 +66,8 @@ export async function updateAttributeAction(
     error: true,
     message: 'Unimplemented action',
   };
+}
+
+export async function deleteAttributeAction(id: number) {
+  return await deleteAttribute(id);
 }

@@ -2,7 +2,6 @@ import { db } from '@/db/drizzle/db';
 import { ProductBrandTable } from '@/db/drizzle/schema';
 import { eq, sql, desc, asc } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
-import { logger } from '@/lib/logger';
 import { empty } from '@/lib/empty';
 
 export const columnMap = {
@@ -40,7 +39,7 @@ export async function getAllBrands(
       .orderBy(sortDir === 'asc' ? asc(column) : desc(column));
     return brands;
   } catch (error) {
-    logger.logError(error, 'Repository: getAllBrands');
+    // logger.logError(error, 'Repository: getAllBrands');
     return new AppError('Failed to fetch brands');
   }
 }
@@ -70,8 +69,7 @@ export async function getAllBrandsForSelect(
 
     return formatted;
   } catch (error) {
-    logger.logError(error, 'Repository: getAllBrandsForSelect');
-    return new AppError('Failed to fetch brands');
+    return new AppError(error.message ?? 'Failed to fetch brands');
   }
 }
 
@@ -82,9 +80,7 @@ export async function getPaginatedBrands(
   sortDir: 'asc' | 'desc' = 'asc',
   search?: string
 ) {
-  const validSortKey = (
-    sortKey && sortKey in columnMap ? sortKey : 'id'
-  ) as SortableBrandColumn;
+  const validSortKey = (sortKey && sortKey in columnMap ? sortKey : 'id') as SortableBrandColumn;
 
   try {
     const offset = (page - 1) * pageSize;
@@ -132,15 +128,8 @@ export async function getPaginatedBrands(
       totalPages: Math.ceil(total / pageSize),
     };
   } catch (error) {
-    logger.logError(error, 'Repository: getPaginatedBrands');
-    const message =
-      error instanceof Error
-        ? error.message
-        : 'Failed to fetch paginated brands';
-    return new AppError(
-      `Failed to fetch paginated brands: ${message}`,
-      'FETCH_FAILED'
-    );
+    const message = error instanceof Error ? error.message : 'Failed to fetch paginated brands';
+    return new AppError(`Failed to fetch paginated brands: ${message}`, 'FETCH_FAILED');
   }
 }
 
@@ -152,8 +141,8 @@ export async function createBrand(name: string, website: string) {
       .$returningId();
     return result?.id ?? null;
   } catch (error) {
-    logger.logError(error, 'Repository: createBrand');
-    return new AppError('Failed to create brand');
+    // logger.logError(error, 'Repository: createBrand');
+    return new AppError(error.message ?? 'Failed to create brand');
   }
 }
 
@@ -169,17 +158,17 @@ export async function deleteBrand(id: number) {
       throw new Error(`Brand with ID ${id} not found`);
     }
 
-    const result = await db
-      .delete(ProductBrandTable)
-      .where(eq(ProductBrandTable.id, id));
+    const result = await db.delete(ProductBrandTable).where(eq(ProductBrandTable.id, id));
 
     if (empty(result)) {
       throw new Error(`Failed to delete brand with ID ${id}`);
     }
 
-    return true;
+    return {
+      error: false,
+      message: `Successfully deleted brand #${id} ${existing[0].name}`,
+    };
   } catch (error: unknown) {
-    logger.logError(error, 'Repository: deleteBrand');
     return new AppError(
       error instanceof Error ? error.message : 'Failed to delete brand',
       'DELETE_FAILED'
@@ -197,17 +186,12 @@ export async function getBrandById(id: number) {
 
     return result[0] ?? new AppError(`Brand with ID ${id} not found`, '404');
   } catch (error) {
-    logger.logError(error, 'Repository: getBrandById');
-    return new AppError(`Failed to fetch brand with ID: ${id}`);
+    // logger.logError(error, 'Repository: getBrandById');
+    return new AppError(error.message ?? `Failed to fetch brand with ID: ${id}`);
   }
 }
 
-export async function updateBrandById(
-  id: number,
-  name: string,
-  website: string,
-  createdAt: Date
-) {
+export async function updateBrandById(id: number, name: string, website: string, createdAt: Date) {
   try {
     const result = await db
       .update(ProductBrandTable)

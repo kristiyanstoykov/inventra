@@ -72,8 +72,7 @@ export async function getPaginatedCategories(
       .filter((col) => col.searchable)
       .map((col) => col.key)
       .filter(
-        (key): key is 'id' | 'name' | 'slug' =>
-          key === 'id' || key === 'name' || key === 'slug'
+        (key): key is 'id' | 'name' | 'slug' => key === 'id' || key === 'name' || key === 'slug'
       );
 
     let whereClause: ReturnType<typeof sql> | undefined = undefined;
@@ -111,9 +110,7 @@ export async function getPaginatedCategories(
         .where(inArray(ProductCategory.categoryId, categoryIds))
         .groupBy(ProductCategory.categoryId);
     }
-    const countMap = Object.fromEntries(
-      counts.map((c) => [c.categoryId, c.count])
-    );
+    const countMap = Object.fromEntries(counts.map((c) => [c.categoryId, c.count]));
 
     // Fetch total count for pagination (with search)
     const totalCountResult = await db
@@ -135,14 +132,8 @@ export async function getPaginatedCategories(
     };
   } catch (error) {
     logger.logError(error, 'Repository: getPaginatedCategories');
-    const message =
-      error instanceof Error
-        ? error.message
-        : 'Failed to fetch paginated categories';
-    return new AppError(
-      `Failed to fetch paginated categories: ${message}`,
-      'FETCH_FAILED'
-    );
+    const message = error instanceof Error ? error.message : 'Failed to fetch paginated categories';
+    return new AppError(`Failed to fetch paginated categories: ${message}`, 'FETCH_FAILED');
   }
 }
 
@@ -155,10 +146,7 @@ export async function createCategory(name: string) {
       .replace(/[^a-z0-9-]/g, '')
       .substring(0, 255);
 
-    const [result] = await db
-      .insert(ProductCategoryTable)
-      .values({ name, slug })
-      .$returningId();
+    const [result] = await db.insert(ProductCategoryTable).values({ name, slug }).$returningId();
 
     return result?.id ?? null;
   } catch (error) {
@@ -180,15 +168,16 @@ export async function deleteCategory(id: number) {
       throw new Error(`Category with ID ${id} not found`);
     }
 
-    const result = await db
-      .delete(ProductCategoryTable)
-      .where(eq(ProductCategoryTable.id, id));
+    const result = await db.delete(ProductCategoryTable).where(eq(ProductCategoryTable.id, id));
 
     if (empty(result)) {
       throw new Error(`Failed to delete category with ID ${id}`);
     }
 
-    return true;
+    return {
+      error: false,
+      message: `Successfully deleted category with ID ${id} (${existing[0].name})`,
+    };
   } catch (error: unknown) {
     logger.logError(error, 'Repository: deleteCategory');
     return new AppError(
@@ -215,11 +204,7 @@ export async function getCategoryById(id: number) {
 }
 
 // Update a category by ID
-export async function updateCategoryById(
-  id: number,
-  name: string,
-  slug: string
-) {
+export async function updateCategoryById(id: number, name: string, slug: string) {
   try {
     const newSlug = transliterateBgToLatin(slug)
       .toLowerCase()

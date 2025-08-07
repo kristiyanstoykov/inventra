@@ -19,11 +19,7 @@ type SearchParams = Promise<{
   perPage?: string;
 }>;
 
-export default async function BrandsPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default function BrandsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <Suspense
       fallback={
@@ -49,13 +45,7 @@ async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
     (params.sort?.split('.') as [string, 'asc' | 'desc']) ?? [];
   const search = params.search ?? '';
 
-  const result = await getPaginatedBrands(
-    pageNum,
-    perPage,
-    sortKey,
-    sortDir,
-    search
-  );
+  const result = await getPaginatedBrands(pageNum, perPage, sortKey, sortDir, search);
   if (result instanceof AppError) {
     return (
       <div className="p-4">

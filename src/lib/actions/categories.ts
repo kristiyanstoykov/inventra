@@ -4,16 +4,12 @@ import { z } from 'zod';
 import { AppError } from '../appError';
 import {
   createCategory,
+  deleteCategory,
   updateCategoryById,
 } from '@/db/drizzle/queries/categories';
-import {
-  categoryCreateSchema,
-  categoryUpdateSchema,
-} from '../schema/categories';
+import { categoryCreateSchema, categoryUpdateSchema } from '../schema/categories';
 
-export async function createCategoryAction(
-  unsafeData: z.infer<typeof categoryCreateSchema>
-) {
+export async function createCategoryAction(unsafeData: z.infer<typeof categoryCreateSchema>) {
   const data = categoryCreateSchema.safeParse(unsafeData);
 
   const error = {
@@ -83,4 +79,8 @@ export async function updateCategoryAction(
     error: false,
     message: 'Successfully updated category',
   };
+}
+
+export async function deleteCategoryAction(id: number) {
+  return await deleteCategory(id);
 }

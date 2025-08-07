@@ -107,13 +107,14 @@ export async function updateUserRole(userId: number, roleId: number) {
     if (!user) {
       return new AppError(`User with ID ${userId} not found`, 'USER_NOT_FOUND');
     }
+
     if (!roleId || isNaN(roleId)) {
       return new AppError('Invalid role ID provided', 'INVALID_ROLE_ID');
     }
 
-    const roleExists = await getRoleById(roleId);
-    if (roleExists instanceof AppError) {
-      return new AppError(roleExists.message, roleExists.code);
+    const role = await getRoleById(roleId);
+    if (role instanceof AppError) {
+      return new AppError(role.message, role.code);
     }
 
     const [userRole] = await db
@@ -122,16 +123,21 @@ export async function updateUserRole(userId: number, roleId: number) {
       .where(eq(UserRoleTable.userId, userId))
       .limit(1);
 
-    if (!userRole) {
-      return new AppError(`User role for user ID ${userId} not found`, 'USER_ROLE_NOT_FOUND');
+    if (userRole) {
+      // Update existing user-role
+      const result = await db
+        .update(UserRoleTable)
+        .set({ roleId })
+        .where(eq(UserRoleTable.userId, userId));
+      return result[0];
+    } else {
+      // Insert new user-role
+      const result = await db.insert(UserRoleTable).values({
+        userId,
+        roleId,
+      });
+      return result[0];
     }
-
-    const result = await db
-      .update(UserRoleTable)
-      .set({ roleId })
-      .where(eq(UserRoleTable.userId, userId));
-
-    return result[0];
   } catch (error) {
     logger.logError(error, 'Repository: updateUserRole');
     return new AppError(

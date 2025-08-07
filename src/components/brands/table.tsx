@@ -12,6 +12,10 @@ import { InferSelectModel } from 'drizzle-orm';
 import { PencilIcon, TrashIcon } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ActionButton } from '../ActionButton';
+import { deleteBrand } from '@/db/drizzle/queries/brands';
+import { AppError } from '@/lib/appError';
+import { toast } from 'sonner';
+import { deleteBrandAction } from '@/lib/actions/brands';
 
 type Brands = InferSelectModel<typeof ProductBrandTable>;
 
@@ -20,17 +24,13 @@ function getColumns(): ColumnDef<Brands>[] {
     {
       accessorKey: 'id',
       accessorFn: (row) => row.id,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="ID" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="ID" column={column} />,
       cell: ({ row }) => row.original.id,
     },
     {
       accessorKey: 'name',
       accessorFn: (row) => row.name,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="Name" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="Name" column={column} />,
       cell: ({ row }) => {
         const name = row.original.name;
 
@@ -44,9 +44,7 @@ function getColumns(): ColumnDef<Brands>[] {
     {
       accessorKey: 'website',
       accessorFn: (row) => row.website,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="Website" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="Website" column={column} />,
       cell: ({ row }) => {
         const website = row.original.website;
         return (
@@ -115,26 +113,18 @@ function ActionCell({ id }: { id: number }) {
   const pathname = usePathname();
 
   async function handleDelete(id: number) {
-    const data = {
-      error: false,
-      message: `Successfully deleted attribute #${id}`,
-    };
-
-    // const result = await deleteProductAction(id);
-    // if (result instanceof AppError) {
-    //   data.error = true;
-    //   data.message = result.toString();
-    //   return data;
-    // }
-
-    // if (!result.success) {
-    //   toast.error('Unknown error occurred while deleting product');
-    //   data.error = true;
-    //   data.message = 'Unknown error occurred while deleting product';
-    //   return data;
-    // }
-
-    return data;
+    const result = await deleteBrandAction(id);
+    if (result instanceof AppError) {
+      return {
+        error: true,
+        message: result.toString(),
+      };
+    }
+    if (result.error) {
+      toast.error(result.message);
+      return result;
+    }
+    return result;
   }
 
   return (

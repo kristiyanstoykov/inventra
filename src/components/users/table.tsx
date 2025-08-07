@@ -15,8 +15,12 @@ import { ActionButton } from '../ActionButton';
 import { deleteUserAction } from '@/lib/actions/users';
 import { AppError } from '@/lib/appError';
 import { toast } from 'sonner';
+import { OrderBadge } from '../ui/badge-order-status';
+import { Badge } from '../ui/badge';
 
-type Users = InferSelectModel<typeof UserTable>;
+type Users = InferSelectModel<typeof UserTable> & {
+  roles: { id: number; name: string }[];
+};
 
 function getColumns(): ColumnDef<Users>[] {
   return [
@@ -64,6 +68,32 @@ function getColumns(): ColumnDef<Users>[] {
         return (
           <div className="flex items-center gap-2">
             <span>{email}</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'roles',
+      accessorFn: (row) => row.roles,
+      header: ({ column }) => <DataTableSortableColumnHeader title="Roles" column={column} />,
+      cell: ({ row }) => {
+        const roles = row.original.roles;
+        return (
+          <div className="flex items-center gap-2">
+            {roles.length > 0 ? (
+              roles.map((role) => (
+                <OrderBadge
+                  key={role.id}
+                  variant={role.name.toLowerCase() === 'admin' ? 'cancelled' : 'completed'}
+                >
+                  {role.name}
+                </OrderBadge>
+              ))
+            ) : (
+              <Badge variant={'secondary'} className="border border-muted-foreground">
+                No assigned roles
+              </Badge>
+            )}
           </div>
         );
       },

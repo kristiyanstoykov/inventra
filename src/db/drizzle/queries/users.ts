@@ -5,7 +5,12 @@ import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
 import { empty } from '@/lib/empty';
 import { hashPassword, generateSalt } from '@/auth/core/passwordHasher';
-import { addRoleToUser, deleteUserRoleIdByUserId, getUserRoleIdByUserId } from './roles';
+import {
+  addRoleToUser,
+  deleteUserRoleIdByUserId,
+  getUserRoleIdByUserId,
+  updateUserRole,
+} from './roles';
 // import { empty } from '@/lib/empty';
 
 const columnMap = {
@@ -141,6 +146,7 @@ export async function updateUser(
     phone?: string | null;
     address?: string | null;
     password?: string;
+    roleId: number;
   }
 ) {
   try {
@@ -180,7 +186,9 @@ export async function updateUser(
     if (Object.keys(updateData).length === 0) {
       return new AppError('No fields to update', 'NO_UPDATE_FIELDS');
     }
-    const result = await db.update(UserTable).set(updateData).where(eq(UserTable.id, id));
+    await db.update(UserTable).set(updateData).where(eq(UserTable.id, id));
+    await updateUserRole(id, userData.roleId);
+
     return true;
   } catch (error) {
     logger.logError(error, 'Repository: updateUser');
