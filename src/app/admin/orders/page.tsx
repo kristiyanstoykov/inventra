@@ -2,9 +2,12 @@ import { Heading } from '@/components/ui/heading';
 import { Suspense } from 'react';
 import { AppError } from '@/lib/appError';
 import { DataTableSearchClient } from '@/components/dataTable/DataTableSearchClient';
-import { Metadata } from 'next';
 import { OrdersTable, SkeletonOrdersTable } from '@/components/orders/table';
 import { getPaginatedOrders } from '@/db/drizzle/queries/orders';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { PlusIcon } from 'lucide-react';
+import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'All Orders',
@@ -17,11 +20,7 @@ type SearchParams = Promise<{
   perPage?: string;
 }>;
 
-export default async function OrdersPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function OrdersPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <Suspense
       fallback={
@@ -63,9 +62,16 @@ async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <div className="m-4">
-      <Heading size={'h3'} as={'h1'} className="mb-4">
-        Orders
-      </Heading>
+      <div className="flex">
+        <Heading size={'h3'} as={'h1'} className="mb-4 mr-4">
+          Orders
+        </Heading>
+        <Link href="orders/new">
+          <Button variant={'addition'}>
+            <PlusIcon /> Create new Order
+          </Button>
+        </Link>
+      </div>
       <div className="">
         <DataTableSearchClient />
         <Suspense fallback={<SkeletonOrdersTable />}>

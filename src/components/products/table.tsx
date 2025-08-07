@@ -27,17 +27,27 @@ function getColumns(): ColumnDef<Products>[] {
     {
       accessorKey: 'id',
       accessorFn: (row) => row.id,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="ID" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="ID" column={column} />,
       cell: ({ row }) => row.original.id,
+    },
+    {
+      accessorKey: 'sn',
+      accessorFn: (row) => row.sn,
+      header: ({ column }) => <DataTableSortableColumnHeader title="SN" column={column} />,
+      cell: ({ row }) => {
+        const sn = row.original.sn;
+
+        return (
+          <div className="flex items-center gap-2">
+            <span>{sn}</span>
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'name',
       accessorFn: (row) => row.name,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="Name" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="Name" column={column} />,
       cell: ({ row }) => {
         const name = row.original.name;
 
@@ -51,23 +61,17 @@ function getColumns(): ColumnDef<Products>[] {
     {
       accessorKey: 'price',
       accessorFn: (row) => parseFloat(row.price),
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="Price" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="Price" column={column} />,
       cell: ({ row }) => {
         const price = parseFloat(row.original.price);
         const salePrice =
-          row.original.salePrice != null
-            ? parseFloat(row.original.salePrice)
-            : null;
+          row.original.salePrice != null ? parseFloat(row.original.salePrice) : null;
 
         return (
           <div className="flex items-center gap-2">
             {salePrice != null ? (
               <>
-                <span className="line-through text-muted-foreground">
-                  {price.toFixed(2)}
-                </span>
+                <span className="line-through text-muted-foreground">{price.toFixed(2)}</span>
                 <span>{salePrice.toFixed(2)}</span>
               </>
             ) : (
@@ -84,11 +88,7 @@ function getColumns(): ColumnDef<Products>[] {
         let categories = row.original.categories;
 
         // Normalize to array of objects
-        if (
-          !Array.isArray(categories) &&
-          categories &&
-          typeof categories === 'object'
-        ) {
+        if (!Array.isArray(categories) && categories && typeof categories === 'object') {
           categories = Object.entries(categories).map(([id, name]) => ({
             id: Number(id),
             name: String(name),
@@ -117,11 +117,7 @@ function getColumns(): ColumnDef<Products>[] {
         let attributes = row.original.attributes;
 
         // Normalize to array if the backend returns an object instead of an array
-        if (
-          !Array.isArray(attributes) &&
-          attributes &&
-          typeof attributes === 'object'
-        ) {
+        if (!Array.isArray(attributes) && attributes && typeof attributes === 'object') {
           attributes = Object.values(attributes).map((attr: any) => ({
             id: Number(attr.id),
             name: String(attr.name),
@@ -146,11 +142,23 @@ function getColumns(): ColumnDef<Products>[] {
       },
     },
     {
+      accessorKey: 'quantity',
+      accessorFn: (row) => row.quantity,
+      header: ({ column }) => <DataTableSortableColumnHeader title="Quantity" column={column} />,
+      cell: ({ row }) => {
+        const quantity = row.original.quantity;
+
+        return (
+          <div className="flex items-center gap-2">
+            <span>{quantity}</span>
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: 'createdAt',
       accessorFn: (row) => row.createdAt,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="Created on" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="Created on" column={column} />,
       cell: ({ row }) => {
         const date = row.original.createdAt;
         const day = String(date.getDate()).padStart(2, '0');
@@ -231,8 +239,7 @@ function ActionCell({ id }: { id: number }) {
 
     if (!result.success) {
       data.error = true;
-      data.message =
-        result.message ?? 'Unknown error occurred while deleting product';
+      data.message = result.message ?? 'Unknown error occurred while deleting product';
       toast.error(data.message);
       return data;
     }
