@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { getCurrentUser } from '@/auth/nextjs/currentUser';
+import { getCurrentUser } from '@/drizzle/queries/currentUser';
 
 export default async function PrivatePage() {
   const currentUser = await getCurrentUser({ redirectIfNotFound: true });

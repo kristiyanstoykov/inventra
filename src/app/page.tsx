@@ -1,5 +1,5 @@
 import { LogOutButton } from '@/auth/nextjs/components/LogOutButton';
-import { getCurrentUser } from '@/auth/nextjs/currentUser';
+import { getCurrentUser } from '@/drizzle/queries/currentUser';
 import { SignInForm } from '@/auth/nextjs/components/SignInForm';
 import { SignUpForm } from '@/auth/nextjs/components/SignUpForm';
 import { Button } from '@/components/ui/button';

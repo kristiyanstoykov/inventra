@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { getUserFromSession } from '../core/session';
+import { getUserFromSession } from '../../auth/core/session';
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { db } from '@/drizzle/db';
