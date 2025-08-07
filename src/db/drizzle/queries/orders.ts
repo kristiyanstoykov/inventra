@@ -1,10 +1,5 @@
 import { db } from '@/db/drizzle/db';
-import {
-  OrderTable,
-  OrderItemTable,
-  ProductTable,
-  UserTable,
-} from '@/db/drizzle/schema';
+import { OrderTable, OrderItemTable, ProductTable, UserTable } from '@/db/drizzle/schema';
 import { eq, sql, or, like, desc, asc, inArray } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
@@ -78,11 +73,7 @@ export async function getAllOrders(
 // Get an order by ID
 export async function getOrderById(id: number) {
   try {
-    return await db
-      .select()
-      .from(OrderTable)
-      .where(eq(OrderTable.id, id))
-      .limit(1);
+    return await db.select().from(OrderTable).where(eq(OrderTable.id, id)).limit(1);
   } catch (error) {
     logger.logError(error, 'Repository: getOrderById');
     return new AppError(`Failed to fetch order with ID: ${id}`);
@@ -100,13 +91,7 @@ export async function getPaginatedOrders(
     sortKey && sortKey in orderColumnMap ? sortKey : null
   ) as SortableOrderColumn | null;
 
-  const orders = await getAllOrders(
-    page,
-    pageSize,
-    validSortKey,
-    sortDir,
-    search
-  );
+  const orders = await getAllOrders(page, pageSize, validSortKey, sortDir, search);
   if (orders instanceof AppError) {
     return orders;
   }
@@ -131,8 +116,6 @@ export async function getPaginatedOrders(
     }
 
     const [{ count }] = await baseCountQuery;
-
-    console.log('Count of orders:', count);
 
     return {
       data: orders,

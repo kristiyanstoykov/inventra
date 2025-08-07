@@ -19,13 +19,7 @@ import { useRouter } from 'next/navigation';
 import { userSchema, UserType } from '@/lib/schema/users';
 import { Switch } from '../ui/switch';
 import { createUserAction, updateUserAction } from '@/lib/actions/users';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 export function UserForm({
   user,
@@ -68,7 +62,7 @@ export function UserForm({
       vatNumber: user?.vatNumber ?? '',
       phone: user?.phone ?? '',
       address: user?.address ?? '',
-      roles: user?.roles ?? [],
+      roleId: user?.roleId ?? getDefaultRoleId(roles),
     },
   });
 
@@ -76,16 +70,7 @@ export function UserForm({
 
   async function onSubmit(data: z.infer<typeof userSchema>) {
     try {
-      const action = user?.id
-        ? updateUserAction.bind(null, user.id)
-        : createUserAction;
-
-      toast.error(
-        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      );
-      return;
+      const action = user?.id ? updateUserAction.bind(null, user.id) : createUserAction;
 
       const res = await action(data);
 
@@ -104,23 +89,21 @@ export function UserForm({
         }
       }
 
-      toast.success(
-        isEdit ? 'User updated successfully' : 'User created successfully'
-      );
+      toast.success(isEdit ? 'User updated successfully' : 'User created successfully');
     } catch (err: unknown) {
       toast.error(
-        'There was an error processing the user: ' +
-          (err.message || 'Unexpected error.')
+        'There was an error processing the user: ' + (err.message || 'Unexpected error.')
       );
     }
   }
 
+  function getDefaultRoleId(roles: { id: number; name: string }[]): number | undefined {
+    return roles.find((r) => r.name.toLowerCase() === 'client')?.id;
+  }
+
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6 @container"
-      >
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 @container">
         {/* Basic Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField
@@ -159,11 +142,7 @@ export function UserForm({
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder="john@example.com"
-                    autoComplete="off"
-                    {...field}
-                  />
+                  <Input placeholder="john@example.com" autoComplete="off" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -195,30 +174,20 @@ export function UserForm({
                 <FormControl>
                   {roles.length > 0 ? (
                     <Select
-                      onValueChange={field.onChange}
-                      value={
-                        roles.find((r) => r.id === field.value)
+                      onValueChange={(value) => field.onChange(Number(value))}
+                      defaultValue={
+                        field.value !== 0 && field.value !== undefined
                           ? String(field.value)
-                          : String(
-                              roles.find(
-                                (r) => r.name.toLowerCase() === 'client'
-                              )?.id ?? ''
-                            )
+                          : String(getDefaultRoleId(roles))
                       }
-                      defaultValue={String(
-                        roles.find((r) => r.id === field.value)
-                          ? field.value
-                          : roles.find((r) => r.name.toLowerCase() === 'client')
-                              ?.id ?? ''
-                      )}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Choose Role" />
                       </SelectTrigger>
                       <SelectContent>
-                        {roles.map((role: { id: number; name: string }) => (
+                        {roles.map((role) => (
                           <SelectItem key={role.id} value={String(role.id)}>
-                            {role.name}
+                            {String(role.name).charAt(0).toUpperCase() + String(role.name).slice(1)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -241,15 +210,10 @@ export function UserForm({
             <FormItem className="col-span-7 flex items-center justify-between rounded-lg border p-3 shadow-sm">
               <div className="space-y-0.5">
                 <FormLabel>Is Company?</FormLabel>
-                <p className="text-sm text-muted-foreground">
-                  Toggle if this user is a company
-                </p>
+                <p className="text-sm text-muted-foreground">Toggle if this user is a company</p>
               </div>
               <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
               </FormControl>
             </FormItem>
           )}

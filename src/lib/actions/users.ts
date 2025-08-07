@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { AppError } from '../appError';
 import { userSchema } from '../schema/users';
-import { createUser, updateUser } from '@/db/drizzle/queries/users';
+import { createUser, deleteUser, updateUser } from '@/db/drizzle/queries/users';
 import { generateRandomPassword } from '@/auth/core/passwordHasher';
 
 export async function createUserAction(unsafeData: z.infer<typeof userSchema>) {
@@ -34,6 +34,7 @@ export async function createUserAction(unsafeData: z.infer<typeof userSchema>) {
     phone: data.data.phone,
     address: data.data.address,
     password: password,
+    roleId: data.data.roleId,
   });
 
   if (result instanceof AppError) {
@@ -50,10 +51,7 @@ export async function createUserAction(unsafeData: z.infer<typeof userSchema>) {
   };
 }
 
-export async function updateUserAction(
-  id: number,
-  unsafeData: z.infer<typeof userSchema>
-) {
+export async function updateUserAction(id: number, unsafeData: z.infer<typeof userSchema>) {
   const data = userSchema.safeParse(unsafeData);
 
   if (data.error) {
@@ -76,4 +74,14 @@ export async function updateUserAction(
     error: false,
     message: 'User updated successfully',
   };
+}
+
+export async function deleteUserAction(id: number) {
+  const result = await deleteUser(id);
+
+  if (result instanceof AppError) {
+    return result;
+  }
+
+  return result;
 }

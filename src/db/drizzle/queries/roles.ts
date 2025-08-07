@@ -129,15 +129,37 @@ export async function updateUserRole(userId: number, roleId: number) {
     const result = await db
       .update(UserRoleTable)
       .set({ roleId })
-      .where(eq(UserRoleTable.userId, userId))
-      .$returningId();
+      .where(eq(UserRoleTable.userId, userId));
 
-    return result[0]?.id;
+    return result[0];
   } catch (error) {
     logger.logError(error, 'Repository: updateUserRole');
     return new AppError(
       error instanceof Error ? error.message : `Failed to update role for user with ID: ${userId}`,
       'UPDATE_ROLE_FAILED'
+    );
+  }
+}
+
+export async function deleteUserRoleIdByUserId(userId: number) {
+  try {
+    if (!userId || isNaN(userId)) {
+      return new AppError('Invalid user ID provided', 'INVALID_USER_ID');
+    }
+
+    const result = await db.delete(UserRoleTable).where(eq(UserRoleTable.userId, userId));
+
+    // MySqlRawQueryResult has an 'affectedRows' property
+    if (result.affectedRows === 0) {
+      return new AppError(`No user role found for user ID ${userId}`, 'USER_ROLE_NOT_FOUND');
+    }
+
+    return { success: true, message: `Successfully deleted role for user ID ${userId}` };
+  } catch (error) {
+    logger.logError(error, 'Repository: deleteUserRoleIdByUserId');
+    return new AppError(
+      error instanceof Error ? error.message : `Failed to delete role for user with ID: ${userId}`,
+      'DELETE_ROLE_FAILED'
     );
   }
 }

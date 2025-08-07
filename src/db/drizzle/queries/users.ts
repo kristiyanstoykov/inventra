@@ -5,7 +5,7 @@ import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
 import { empty } from '@/lib/empty';
 import { hashPassword, generateSalt } from '@/auth/core/passwordHasher';
-import { getUserRoleIdByUserId } from './roles';
+import { addRoleToUser, deleteUserRoleIdByUserId, getUserRoleIdByUserId } from './roles';
 // import { empty } from '@/lib/empty';
 
 const columnMap = {
@@ -95,6 +95,10 @@ export async function createUser(userData: {
   roleId?: number;
 }) {
   try {
+    if (!userData.roleId || null == userData.roleId || isNaN(userData.roleId)) {
+      throw new Error('Invalid role ID provided');
+    }
+
     const salt = generateSalt();
     const passwordHash = await hashPassword(userData.password, salt);
 
@@ -115,12 +119,7 @@ export async function createUser(userData: {
       })
       .$returningId();
 
-    if (userData.roleId) {
-      await db.insert(UserRoleTable).values({
-        userId: user.id,
-        roleId: userData.roleId,
-      });
-    }
+    await addRoleToUser(user.id, userData.roleId);
 
     return user.id;
   } catch (error) {
@@ -146,11 +145,7 @@ export async function updateUser(
 ) {
   try {
     // Check if the user exists
-    const existingUser = await db
-      .select()
-      .from(UserTable)
-      .where(eq(UserTable.id, id))
-      .limit(1);
+    const existingUser = await db.select().from(UserTable).where(eq(UserTable.id, id)).limit(1);
     if (existingUser.length === 0) {
       return new AppError(`No user found with ID: ${id}`, 'NOT_FOUND');
     }
@@ -159,28 +154,21 @@ export async function updateUser(
 
     if (userData.email !== undefined) updateData.email = userData.email;
     if (userData.firstName !== undefined)
-      updateData.firstName =
-        userData.firstName === '' ? null : userData.firstName;
+      updateData.firstName = userData.firstName === '' ? null : userData.firstName;
     if (userData.lastName !== undefined)
       updateData.lastName = userData.lastName === '' ? null : userData.lastName;
     if (userData.companyName !== undefined)
-      updateData.companyName =
-        userData.companyName === '' ? null : userData.companyName;
+      updateData.companyName = userData.companyName === '' ? null : userData.companyName;
     if (userData.bulstat !== undefined)
       updateData.bulstat = userData.bulstat === '' ? null : userData.bulstat;
     if (userData.vatNumber !== undefined)
-      updateData.vatNumber =
-        userData.vatNumber === '' ? null : userData.vatNumber;
+      updateData.vatNumber = userData.vatNumber === '' ? null : userData.vatNumber;
     if (userData.phone !== undefined)
       updateData.phone = userData.phone === '' ? null : userData.phone;
     if (userData.address !== undefined)
       updateData.address = userData.address === '' ? null : userData.address;
 
-    if (
-      userData.password !== undefined &&
-      userData.password !== null &&
-      userData.password !== ''
-    ) {
+    if (userData.password !== undefined && userData.password !== null && userData.password !== '') {
       const salt = generateSalt();
       const passwordHash = await hashPassword(userData.password, salt);
       updateData.password = passwordHash;
@@ -192,17 +180,11 @@ export async function updateUser(
     if (Object.keys(updateData).length === 0) {
       return new AppError('No fields to update', 'NO_UPDATE_FIELDS');
     }
-    const result = await db
-      .update(UserTable)
-      .set(updateData)
-      .where(eq(UserTable.id, id));
+    const result = await db.update(UserTable).set(updateData).where(eq(UserTable.id, id));
     return true;
   } catch (error) {
     logger.logError(error, 'Repository: updateUser');
-    return new AppError(
-      error.message ?? 'Failed to update user',
-      'UPDATE_FAILED'
-    );
+    return new AppError(error.message ?? 'Failed to update user', 'UPDATE_FAILED');
   }
 }
 
@@ -210,15 +192,13 @@ export async function updateUser(
 export async function deleteUser(id: number) {
   try {
     // Check if the user exists before attempting to delete
-    const existingUser = await db
-      .select()
-      .from(UserTable)
-      .where(eq(UserTable.id, id))
-      .limit(1);
+    const existingUser = await db.select().from(UserTable).where(eq(UserTable.id, id)).limit(1);
 
     if (existingUser.length === 0) {
       throw new Error(`No user found with ID: ${id}`);
     }
+
+    await deleteUserRoleIdByUserId(id);
 
     // Perform the delete operation
     const result = await db.delete(UserTable).where(eq(UserTable.id, id));
@@ -227,13 +207,14 @@ export async function deleteUser(id: number) {
       throw new Error(`Failed to delete user with ID: ${id}`);
     }
 
-    return true; // User deleted successfully
+    return {
+      success: true,
+      message: `Successfully deleted user #${id} ${existingUser[0].firstName} ${existingUser[0].lastName}`,
+    };
   } catch (error: unknown) {
     logger.logError(error, 'Repository: deleteUser');
     return new AppError(
-      error instanceof Error
-        ? error.message
-        : `Failed to delete user with ID: ${id}`,
+      error instanceof Error ? error.message : `Failed to delete user with ID: ${id}`,
       'DELETE_FAILED'
     );
   }
@@ -242,11 +223,7 @@ export async function deleteUser(id: number) {
 // Get a product by ID
 export async function getUserById(id: number) {
   try {
-    const result = await db
-      .select()
-      .from(UserTable)
-      .where(eq(UserTable.id, id))
-      .limit(1);
+    const result = await db.select().from(UserTable).where(eq(UserTable.id, id)).limit(1);
 
     if (!result || result.length === 0) {
       return new AppError(`No user found with ID: ${id}`);
@@ -275,21 +252,13 @@ export async function getPaginatedUsers(
     sortKey && sortKey in columnMap ? sortKey : null
   ) as SortableUsersColumn | null;
 
-  const usersOrError = await getAllUsersWithRoles(
-    page,
-    pageSize,
-    validSortKey,
-    sortDir,
-    search
-  );
+  const usersOrError = await getAllUsersWithRoles(page, pageSize, validSortKey, sortDir, search);
   if (usersOrError instanceof AppError) {
     return usersOrError;
   }
 
   try {
-    const baseCountQuery = db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(UserTable);
+    const baseCountQuery = db.select({ count: sql<number>`COUNT(*)` }).from(UserTable);
 
     if (!empty(search)) {
       const loweredSearch = `%${search.toLowerCase()}%`;
@@ -299,11 +268,7 @@ export async function getPaginatedUsers(
         .filter((key): key is SortableUsersColumn => key in columnMap);
 
       baseCountQuery.where(
-        or(
-          ...searchableKeys.map((key) =>
-            like(sql`LOWER(${columnMap[key]})`, loweredSearch)
-          )
-        )
+        or(...searchableKeys.map((key) => like(sql`LOWER(${columnMap[key]})`, loweredSearch)))
       );
     }
 
@@ -342,11 +307,7 @@ export async function getAllUsersWithRoles(
 
       if (searchableKeys.length > 0) {
         query.where(
-          or(
-            ...searchableKeys.map((key) =>
-              like(sql`LOWER(${columnMap[key]})`, loweredSearch)
-            )
-          )
+          or(...searchableKeys.map((key) => like(sql`LOWER(${columnMap[key]})`, loweredSearch)))
         );
       }
     }

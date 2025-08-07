@@ -20,11 +20,7 @@ type SearchParams = Promise<{
   perPage?: string;
 }>;
 
-export default async function UsersPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default function UsersPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <Suspense
       fallback={
@@ -50,13 +46,7 @@ async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
     (params.sort?.split('.') as [string, 'asc' | 'desc']) ?? [];
   const search = params.search ?? '';
 
-  const result = await getPaginatedUsers(
-    pageNum,
-    perPage,
-    sortKey,
-    sortDir,
-    search
-  );
+  const result = await getPaginatedUsers(pageNum, perPage, sortKey, sortDir, search);
   if (result instanceof AppError) {
     return (
       <div className="p-4">
@@ -69,8 +59,6 @@ async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
   }
 
   const { data, total, page, pageSize, totalPages } = result;
-
-  console.log('Users data:', data);
 
   return (
     <div className="m-4">

@@ -12,6 +12,9 @@ import { InferSelectModel } from 'drizzle-orm';
 import { PencilIcon, TrashIcon } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ActionButton } from '../ActionButton';
+import { deleteUserAction } from '@/lib/actions/users';
+import { AppError } from '@/lib/appError';
+import { toast } from 'sonner';
 
 type Users = InferSelectModel<typeof UserTable>;
 
@@ -20,28 +23,16 @@ function getColumns(): ColumnDef<Users>[] {
     {
       accessorKey: 'id',
       accessorFn: (row) => row.id,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="ID" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="ID" column={column} />,
       cell: ({ row }) => row.original.id,
     },
     {
       accessorKey: 'firstName',
       accessorFn: (row) => row.firstName,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="Names" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="Names" column={column} />,
       cell: ({ row }) => {
-        const {
-          isCompany,
-          firstName,
-          lastName,
-          companyName,
-          bulstat,
-          vatNumber,
-          phone,
-          address,
-        } = row.original;
+        const { isCompany, firstName, lastName, companyName, bulstat, vatNumber, phone, address } =
+          row.original;
 
         if (isCompany) {
           return (
@@ -67,9 +58,7 @@ function getColumns(): ColumnDef<Users>[] {
     {
       accessorKey: 'email',
       accessorFn: (row) => row.email,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="Email" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="Email" column={column} />,
       cell: ({ row }) => {
         const email = row.original.email;
         return (
@@ -139,24 +128,24 @@ function ActionCell({ id }: { id: number }) {
   async function handleDelete(id: number) {
     const data = {
       error: false,
-      message: `Successfully deleted attribute #${id}`,
+      message: `Successfully deleted user #${id}`,
     };
 
-    // const result = await deleteProductAction(id);
-    // if (result instanceof AppError) {
-    //   data.error = true;
-    //   data.message = result.toString();
-    //   return data;
-    // }
+    const result = await deleteUserAction(id);
+    if (result instanceof AppError) {
+      data.error = true;
+      data.message = result.toString();
+      return data;
+    }
 
-    // if (!result.success) {
-    //   toast.error('Unknown error occurred while deleting product');
-    //   data.error = true;
-    //   data.message = 'Unknown error occurred while deleting product';
-    //   return data;
-    // }
+    if (!result.success) {
+      toast.error('Unknown error occurred while deleting user');
+      data.error = true;
+      data.message = 'Unknown error occurred while deleting user';
+      return data;
+    }
 
-    return data;
+    return result;
   }
 
   return (
@@ -174,7 +163,7 @@ function ActionCell({ id }: { id: number }) {
       <ActionButton
         action={async () => handleDelete(id)}
         requireAreYouSure={true}
-        areYouSureDescription="This action cannot be undone. Are you sure you want to delete this product?"
+        areYouSureDescription={`This action cannot be undone. Are you sure you want to delete user with id ${id}?`}
         router={router}
         routerRefresh={true}
         variant={'destructive'}
