@@ -47,6 +47,7 @@ async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
   const search = params.search ?? '';
 
   const result = await getPaginatedOrders(pageNum, perPage, sortKey, sortDir);
+
   if (result instanceof AppError) {
     return (
       <div className="p-4">

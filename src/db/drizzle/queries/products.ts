@@ -99,11 +99,7 @@ export async function getAllProducts(
 export async function getProductById(id: number) {
   try {
     // Fetch the product
-    const result = await db
-      .select()
-      .from(ProductTable)
-      .where(eq(ProductTable.id, id))
-      .limit(1);
+    const result = await db.select().from(ProductTable).where(eq(ProductTable.id, id)).limit(1);
 
     if (empty(result)) {
       throw new AppError(`No product found with ID: ${id}`, 'NOT_FOUND');
@@ -161,10 +157,7 @@ export async function createProduct(data: z.infer<typeof ProductSchema>) {
       brandId: null,
     };
 
-    const [result] = await db
-      .insert(ProductTable)
-      .values(product_data)
-      .$returningId();
+    const [result] = await db.insert(ProductTable).values(product_data).$returningId();
 
     if (!result.id) {
       throw new Error('Failed to create product');
@@ -176,9 +169,7 @@ export async function createProduct(data: z.infer<typeof ProductSchema>) {
       .insert(ProductCategory)
       .values(
         category_ids
-          .filter(
-            (categoryId): categoryId is number => typeof categoryId === 'number'
-          )
+          .filter((categoryId): categoryId is number => typeof categoryId === 'number')
           .map((categoryId) => ({
             productId: result.id,
             categoryId,
@@ -187,19 +178,14 @@ export async function createProduct(data: z.infer<typeof ProductSchema>) {
       .$returningId();
 
     if (!resultCategory.id) {
-      errorMessages.push(
-        'Product was created, but failed to associate categories with product'
-      );
+      errorMessages.push('Product was created, but failed to associate categories with product');
     }
 
     const [resultAttribute] = await db
       .insert(ProductAttributeTable)
       .values(
         attribute_ids
-          .filter(
-            (attributeId): attributeId is number =>
-              typeof attributeId === 'number'
-          )
+          .filter((attributeId): attributeId is number => typeof attributeId === 'number')
           .map((attributeId) => ({
             productId: result.id,
             attributeId,
@@ -219,27 +205,19 @@ export async function createProduct(data: z.infer<typeof ProductSchema>) {
     };
   } catch (error: unknown) {
     // logger.logError(error, 'Repository: createProduct');
-    return new AppError(
-      error instanceof Error ? error.message : 'Failed to create product'
-    );
+    return new AppError(error instanceof Error ? error.message : 'Failed to create product');
   }
 }
 
-export async function updateProduct(
-  id: number,
-  data: z.infer<typeof ProductSchema>
-) {
+export async function updateProduct(id: number, data: z.infer<typeof ProductSchema>) {
   if (!id) {
     return new AppError('Product ID is required for update');
   }
 
   const productId = id;
   const attributeIds =
-    data.attributeIds?.filter((id): id is number => typeof id === 'number') ||
-    [];
-  const categoryIds =
-    data.categoryIds?.filter((id): id is number => typeof id === 'number') ||
-    [];
+    data.attributeIds?.filter((id): id is number => typeof id === 'number') || [];
+  const categoryIds = data.categoryIds?.filter((id): id is number => typeof id === 'number') || [];
 
   try {
     // 1. Update product main fields
@@ -279,12 +257,8 @@ export async function updateProduct(
 
     const existingCategoryIds = existingCategories.map((row) => row.categoryId);
 
-    const categoriesToAdd = categoryIds.filter(
-      (id) => !existingCategoryIds.includes(id)
-    );
-    const categoriesToRemove = existingCategoryIds.filter(
-      (id) => !categoryIds.includes(id)
-    );
+    const categoriesToAdd = categoryIds.filter((id) => !existingCategoryIds.includes(id));
+    const categoriesToRemove = existingCategoryIds.filter((id) => !categoryIds.includes(id));
 
     if (categoriesToRemove.length > 0) {
       await db
@@ -312,16 +286,10 @@ export async function updateProduct(
       .from(ProductAttributeTable)
       .where(eq(ProductAttributeTable.productId, productId));
 
-    const existingAttributeIds = existingAttributes.map(
-      (row) => row.attributeId
-    );
+    const existingAttributeIds = existingAttributes.map((row) => row.attributeId);
 
-    const attributesToAdd = attributeIds.filter(
-      (id) => !existingAttributeIds.includes(id)
-    );
-    const attributesToRemove = existingAttributeIds.filter(
-      (id) => !attributeIds.includes(id)
-    );
+    const attributesToAdd = attributeIds.filter((id) => !existingAttributeIds.includes(id));
+    const attributesToRemove = existingAttributeIds.filter((id) => !attributeIds.includes(id));
 
     if (attributesToRemove.length > 0) {
       await db
@@ -368,9 +336,7 @@ export async function deleteProduct(id: number) {
     }
 
     // First, delete related pivot/meta records
-    await db
-      .delete(ProductAttributeTable)
-      .where(eq(ProductAttributeTable.productId, id));
+    await db.delete(ProductAttributeTable).where(eq(ProductAttributeTable.productId, id));
     await db.delete(ProductCategory).where(eq(ProductCategory.productId, id));
 
     // Perform the delete operation
@@ -398,9 +364,7 @@ export async function getPaginatedProducts(
   search?: string
 ) {
   const defaultSortDir: 'asc' | 'desc' = sortDir ?? 'desc';
-  const validSortKey = (
-    sortKey && sortKey in columnMap ? sortKey : 'id'
-  ) as SortableProductColumn;
+  const validSortKey = (sortKey && sortKey in columnMap ? sortKey : 'id') as SortableProductColumn;
 
   const productsOrError = await getAllProductsWithCategoriesAndAttributes(
     page,
@@ -415,9 +379,7 @@ export async function getPaginatedProducts(
   }
 
   try {
-    const baseCountQuery = db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(ProductTable);
+    const baseCountQuery = db.select({ count: sql<number>`COUNT(*)` }).from(ProductTable);
 
     if (!empty(search)) {
       const loweredSearch = `%${search.toLowerCase()}%`;
@@ -428,11 +390,7 @@ export async function getPaginatedProducts(
         .filter((key): key is SortableProductColumn => key in columnMap);
 
       baseCountQuery.where(
-        or(
-          ...searchableKeys.map((key) =>
-            like(sql`LOWER(${columnMap[key]})`, loweredSearch)
-          )
-        )
+        or(...searchableKeys.map((key) => like(sql`LOWER(${columnMap[key]})`, loweredSearch)))
       );
     }
 
@@ -447,10 +405,7 @@ export async function getPaginatedProducts(
     };
   } catch (error: unknown) {
     // logger.logError(error, 'Repository: getPaginatedProducts');
-    return new AppError(
-      `Failed to fetch paginated products: ${error}`,
-      'FETCH_FAILED'
-    );
+    return new AppError(`Failed to fetch paginated products: ${error}`, 'FETCH_FAILED');
   }
 }
 
@@ -498,10 +453,7 @@ export async function getAllProductsWithCategoriesAndAttributes(
           categoryName: ProductCategoryTable.name,
         })
         .from(ProductCategory)
-        .innerJoin(
-          ProductCategoryTable,
-          eq(ProductCategory.categoryId, ProductCategoryTable.id)
-        )
+        .innerJoin(ProductCategoryTable, eq(ProductCategory.categoryId, ProductCategoryTable.id))
         .where(inArray(ProductCategory.productId, productIds));
     }
 
@@ -530,10 +482,7 @@ export async function getAllProductsWithCategoriesAndAttributes(
           attributeUnit: AttributeTable.unit,
         })
         .from(ProductAttributeTable)
-        .innerJoin(
-          AttributeTable,
-          eq(ProductAttributeTable.attributeId, AttributeTable.id)
-        )
+        .innerJoin(AttributeTable, eq(ProductAttributeTable.attributeId, AttributeTable.id))
         .where(inArray(ProductAttributeTable.productId, productIds));
     }
 
@@ -557,5 +506,75 @@ export async function getAllProductsWithCategoriesAndAttributes(
   } catch (error) {
     // logger.logError(error, 'Repository: getAllProductsWithCategories');
     return new AppError('Failed to fetch products with categories');
+  }
+}
+
+export async function getProductsBySearch(search: string) {
+  try {
+    const loweredSerial = search.toLowerCase();
+
+    // Fetch products with matching serial number or name and quantity > 0
+    const products = await db
+      .select()
+      .from(ProductTable)
+      .where(
+        and(
+          or(
+            like(sql`LOWER(${ProductTable.sn})`, `%${loweredSerial}%`),
+            like(sql`LOWER(${ProductTable.name})`, `%${loweredSerial}%`),
+            like(sql`LOWER(${ProductTable.sku})`, `%${loweredSerial}%`)
+          ),
+          sql`${ProductTable.quantity} > 0`
+        )
+      );
+
+    if (empty(products)) {
+      return [];
+    }
+
+    const productIds = products.map((p) => p.id);
+
+    // Fetch categories for these products
+    const productCategories = await db
+      .select({
+        productId: ProductCategory.productId,
+        categoryId: ProductCategoryTable.id,
+        categoryName: ProductCategoryTable.name,
+      })
+      .from(ProductCategory)
+      .innerJoin(ProductCategoryTable, eq(ProductCategory.categoryId, ProductCategoryTable.id))
+      .where(inArray(ProductCategory.productId, productIds));
+
+    const categoriesByProductId = productCategories.reduce((acc, curr) => {
+      if (!acc[curr.productId]) acc[curr.productId] = {};
+      acc[curr.productId][curr.categoryId] = curr.categoryName;
+      return acc;
+    }, {} as Record<number, Record<number, string>>);
+
+    // Fetch attributes for these products
+    const productAttributes = await db
+      .select({
+        productId: ProductAttributeTable.productId,
+        attributeId: AttributeTable.id,
+        attributeName: AttributeTable.name,
+      })
+      .from(ProductAttributeTable)
+      .innerJoin(AttributeTable, eq(ProductAttributeTable.attributeId, AttributeTable.id))
+      .where(inArray(ProductAttributeTable.productId, productIds));
+
+    const attributesByProductId = productAttributes.reduce((acc, curr) => {
+      if (!acc[curr.productId]) acc[curr.productId] = {};
+      acc[curr.productId][curr.attributeId] = curr.attributeName;
+      return acc;
+    }, {} as Record<number, Record<number, string>>);
+
+    // Combine results
+    return products.map((product) => ({
+      ...product,
+      categories: categoriesByProductId[product.id] || {},
+      attributes: attributesByProductId[product.id] || {},
+    }));
+  } catch (error) {
+    return new AppError(error.message || 'Failed to fetch products by serial number');
   }
 }

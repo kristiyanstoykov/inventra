@@ -361,3 +361,38 @@ export async function getAllUsersWithRoles(
     return new AppError('Failed to fetch users with roles');
   }
 }
+
+export async function getUsersByName(
+  name: string
+): Promise<{ id: number; name: string }[] | AppError> {
+  try {
+    const loweredName = `%${name.toLowerCase()}%`;
+    const users = await db
+      .select({
+        id: UserTable.id,
+        firstName: UserTable.firstName,
+        lastName: UserTable.lastName,
+        isCompany: UserTable.isCompany,
+        companyName: UserTable.companyName,
+      })
+      .from(UserTable)
+      .where(
+        or(
+          like(sql`LOWER(${UserTable.firstName})`, loweredName),
+          like(sql`LOWER(${UserTable.lastName})`, loweredName),
+          like(sql`LOWER(${UserTable.companyName})`, loweredName)
+        )
+      );
+
+    return users.map((user) => ({
+      id: user.id,
+      name:
+        user.isCompany && user.companyName
+          ? user.companyName
+          : `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
+    }));
+  } catch (error) {
+    logger.logError(error, 'Repository: getUsersByName');
+    return new AppError('Failed to fetch users by name');
+  }
+}

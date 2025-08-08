@@ -22,6 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '../ui/calendar';
 import { cn } from '@/lib/utils';
+import { SelectProductsField } from './search-product-field';
 
 export function OrderForm({
   order,
@@ -39,19 +40,35 @@ export function OrderForm({
 }) {
   const router = useRouter();
 
-  const FormSchema = z.object({
-    name: z.string().min(1, 'Name is required.'),
-    date: z.date({
-      required_error: 'A date of order is required.',
-    }),
-  });
+  // const FormSchema = z.object({
+  //   name: z.string().min(1, 'Name is required.'),
+  //   date: z.date({
+  //     required_error: 'A date of order is required.',
+  //   }),
+  // });
 
-  const form = useForm<z.infer<typeof FormSchema>>({
-    resolver: zodResolver(FormSchema),
-  });
+  // const form = useForm<z.infer<typeof FormSchema>>({
+  //   resolver: zodResolver(FormSchema),
+  //   defaultValues: {
+  //     date: order?.date ?? new Date(),
+  //   },
+  // });
 
-  async function onSubmit(data: z.infer<typeof FormSchema>) {
+  const form = useForm();
+
+  async function onSubmit(data) {
     try {
+      console.log('Form data:', data);
+
+      toast.success(
+        <>
+          Order added successfully!
+          <pre className="mt-2 w-full whitespace-pre-wrap">
+            {JSON.stringify(data, null, 2).replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+          </pre>
+        </>,
+        { dismissible: true }
+      );
     } catch (err: any) {
       toast.error('There was an error adding the order: ' + (err.message || 'Unexpected error.'), {
         dismissible: true,
@@ -63,38 +80,11 @@ export function OrderForm({
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 @container">
         <FormField
-          name="name"
-          control={form.control}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          name="date"
-          render={() => (
-            <FormItem>
-              <FormLabel>Date of order</FormLabel>
-              <FormControl>
-                <Input />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
           control={form.control}
           name="date"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Date of order</FormLabel>
+              <FormLabel>Date of birth</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -106,24 +96,25 @@ export function OrderForm({
                       )}
                     >
                       {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
-                      <CalendarIcon
-                        className="ml-auto h-4 w-4 opacity-50"
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        captionLayout="dropdown"
-                      />
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" captionLayout="dropdown" />
+                  <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                    captionLayout="dropdown"
+                  />
                 </PopoverContent>
               </Popover>
               <FormMessage />
             </FormItem>
           )}
         />
+
+        <SelectProductsField control={form.control} />
 
         <Button
           variant="addition"

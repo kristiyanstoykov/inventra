@@ -3,15 +3,14 @@
 import {
   createProduct,
   deleteProduct,
+  getProductsBySearch,
   updateProduct,
 } from '@/db/drizzle/queries/products';
 import { AppError } from '@/lib/appError';
 import { ProductSchema } from '../schema/products';
 import z from 'zod';
 
-export async function createProductAction(
-  unsafeData: z.infer<typeof ProductSchema>
-) {
+export async function createProductAction(unsafeData: z.infer<typeof ProductSchema>) {
   const data = ProductSchema.safeParse(unsafeData);
 
   if (!data.success) {
@@ -45,10 +44,7 @@ export async function createProductAction(
   };
 }
 
-export async function updateProductAction(
-  id: number,
-  unsafeData: z.infer<typeof ProductSchema>
-) {
+export async function updateProductAction(id: number, unsafeData: z.infer<typeof ProductSchema>) {
   if (!id) {
     return {
       error: true,
@@ -94,11 +90,7 @@ export async function deleteProductAction(id: number) {
     }
 
     if (typeof id !== 'number' || isNaN(id)) {
-      throw new AppError(
-        'Product ID must be a valid number',
-        '400',
-        'INVALID_PRODUCT_ID'
-      );
+      throw new AppError('Product ID must be a valid number', '400', 'INVALID_PRODUCT_ID');
     }
 
     const result = await deleteProduct(id);
@@ -115,5 +107,19 @@ export async function deleteProductAction(id: number) {
     }
 
     return new AppError(message, code, 'DELETE_PRODUCT_ERROR');
+  }
+}
+
+export async function searchProductsAction(query: string) {
+  if (!query || query.trim() === '') {
+    return [];
+  }
+
+  try {
+    const products = await getProductsBySearch(query);
+    return products;
+  } catch (error) {
+    console.error('Error searching products:', error);
+    throw new AppError('Failed to search products', '500', 'SEARCH_PRODUCTS_ERROR');
   }
 }

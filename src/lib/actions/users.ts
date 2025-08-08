@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { AppError } from '../appError';
 import { userSchema } from '../schema/users';
-import { createUser, deleteUser, updateUser } from '@/db/drizzle/queries/users';
+import { createUser, deleteUser, getUsersByName, updateUser } from '@/db/drizzle/queries/users';
 import { generateRandomPassword } from '@/auth/core/passwordHasher';
 
 export async function createUserAction(unsafeData: z.infer<typeof userSchema>) {
@@ -84,4 +84,21 @@ export async function deleteUserAction(id: number) {
   }
 
   return result;
+}
+
+export async function getUsersByNameAction(name: string) {
+  if (!name || name.length < 3) {
+    return [];
+  }
+
+  const users = await getUsersByName(name);
+
+  if (users instanceof AppError) {
+    return [];
+  }
+
+  return users.map((user) => ({
+    id: user.id,
+    name: `${user.name}`,
+  }));
 }
