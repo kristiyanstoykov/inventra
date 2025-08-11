@@ -1,3 +1,4 @@
+import { OrderPaymentTypeEnum } from '@/lib/schema/order-payment-type';
 import { sql } from 'drizzle-orm';
 import {
   mysqlTable,
@@ -107,12 +108,10 @@ export const ProductTable = mysqlTable('products', {
   name: varchar('name', { length: 255 }).notNull(),
   sku: varchar('sku', { length: 255 }).unique(),
   sn: varchar('sn', { length: 255 }), // serial number
-  price: decimal('price', { precision: 10, scale: 2 })
-    .notNull()
-    .default('0.00'),
+  price: decimal('price', { precision: 10, scale: 2 }).notNull().default('0.00'),
   salePrice: decimal('sale_price', { precision: 10, scale: 2 }),
   deliveryPrice: decimal('delivery_price', { precision: 10, scale: 2 }),
-  quantity: int('quantity').default(0),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).default('0.00'),
   brandId: int('brand_id').references(() => ProductBrandTable.id),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: datetime('updated_at')
@@ -125,7 +124,7 @@ export const ProductTable = mysqlTable('products', {
 export const AttributeTable = mysqlTable('attributes', {
   id: int('id').autoincrement().primaryKey().notNull(),
   name: varchar('name', { length: 255 }).notNull(),
-  value: decimal('value', { precision: 12, scale: 4 }).notNull(),
+  value: decimal('value', { precision: 12, scale: 2 }).notNull(),
   unit: varchar('unit', { length: 64 }),
 });
 
@@ -225,9 +224,16 @@ export const OrderItemTable = mysqlTable('order_items', {
     .notNull()
     .references(() => ProductTable.id),
   quantity: int('quantity').notNull().default(1),
-  price: decimal('price', { precision: 10, scale: 2 })
-    .notNull()
-    .default('0.00'),
+  price: decimal('price', { precision: 10, scale: 2 }).notNull().default('0.00'),
+});
+
+/** ========== Order payment types ========== **/
+export const paymentTypes = OrderPaymentTypeEnum.options;
+export type PaymentTypeEnum = (typeof paymentTypes)[number];
+/** ========== Order Payments Table ========== **/
+export const PaymentTypesTable = mysqlTable('payment_types', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  name: mysqlEnum('name', paymentTypes).notNull().unique(),
 });
 
 /** ========== Invites ========== **/
@@ -262,4 +268,5 @@ export const schema = {
   orders: OrderTable,
   orderItems: OrderItemTable,
   invites: InviteTable,
+  paymentTypes: PaymentTypesTable,
 };

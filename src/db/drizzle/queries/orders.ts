@@ -3,6 +3,8 @@ import { OrderTable, OrderItemTable, ProductTable, UserTable } from '@/db/drizzl
 import { eq, sql, or, like, desc, asc, inArray } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
+import { OrderSchema } from '@/lib/schema/orders';
+import z from 'zod';
 
 // Map for sortable columns in orders
 const orderColumnMap = {
@@ -213,5 +215,17 @@ export async function getAllOrdersWithItems(
   } catch (error) {
     logger.logError(error, 'Repository: getAllOrdersWithItems');
     return new AppError('Failed to fetch orders with items');
+  }
+}
+
+export async function createOrder(data: z.infer<typeof OrderSchema>) {
+  try {
+    const { items, clientId, paymentType, date } = data;
+
+    const result = await db.insert(OrderTable).values(data);
+    return result;
+  } catch (error) {
+    logger.logError(error, 'Repository: createOrder');
+    return new AppError('Failed to create order', 'CREATE_FAILED');
   }
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `payment_types` ADD CONSTRAINT `payment_types_payment_types_enum_unique` UNIQUE(`payment_types_enum`);

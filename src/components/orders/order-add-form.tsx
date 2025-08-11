@@ -19,47 +19,35 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { OrderSchema, OrderType } from '@/lib/schema/orders';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { Banknote, CalendarIcon, CreditCard } from 'lucide-react';
 import { Calendar } from '../ui/calendar';
 import { cn } from '@/lib/utils';
-import { SelectProductsField } from './search-product-field';
+import { SelectProductsField } from './product-search-field';
+import { SelectSearchClient } from './client-search-field';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { InferSelectModel } from 'drizzle-orm';
+import { PaymentTypesTable } from '@/db/drizzle/schema';
 
 export function OrderForm({
   order,
-  brands,
-  attributes,
-  categories,
+  paymentTypesList,
 }: {
-  order: Pick<
-    OrderType,
-    'id' | 'name' | 'sku' | 'price' | 'salePrice' | 'deliveryPrice' | 'quantity' | 'sn' | 'brandId'
-  >;
-  brands: { id: number; name: string }[];
-  attributes: { id: number; name: string }[];
-  categories: { id: number; name: string }[];
+  order: Pick<OrderType, 'id' | 'items' | 'date' | 'clientId'>;
+  paymentTypesList: InferSelectModel<typeof PaymentTypesTable>[];
 }) {
   const router = useRouter();
 
-  // const FormSchema = z.object({
-  //   name: z.string().min(1, 'Name is required.'),
-  //   date: z.date({
-  //     required_error: 'A date of order is required.',
-  //   }),
-  // });
+  const form = useForm({
+    resolver: zodResolver(OrderSchema),
+    defaultValues: {
+      date: order?.date ?? new Date(),
+      items: [],
+      paymentType: paymentTypesList.find((p) => p.name === 'cash') ?? paymentTypesList[0],
+    },
+  });
 
-  // const form = useForm<z.infer<typeof FormSchema>>({
-  //   resolver: zodResolver(FormSchema),
-  //   defaultValues: {
-  //     date: order?.date ?? new Date(),
-  //   },
-  // });
-
-  const form = useForm();
-
-  async function onSubmit(data) {
+  async function onSubmit(data: z.infer<typeof OrderSchema>) {
     try {
-      console.log('Form data:', data);
-
       toast.success(
         <>
           Order added successfully!
@@ -69,6 +57,8 @@ export function OrderForm({
         </>,
         { dismissible: true }
       );
+
+      const result = await createOrderAction(data);
     } catch (err: any) {
       toast.error('There was an error adding the order: ' + (err.message || 'Unexpected error.'), {
         dismissible: true,
@@ -84,7 +74,7 @@ export function OrderForm({
           name="date"
           render={({ field }) => (
             <FormItem className="flex flex-col">
-              <FormLabel>Date of birth</FormLabel>
+              <FormLabel>Date of order</FormLabel>
               <Popover>
                 <PopoverTrigger asChild>
                   <FormControl>
@@ -114,7 +104,56 @@ export function OrderForm({
           )}
         />
 
-        <SelectProductsField control={form.control} />
+        <SelectSearchClient
+          control={form.control}
+          name="clientId"
+          label="Client"
+          // Optional: resolve label when editing existing orders
+          // resolveLabel={async (id) => (await getUserByIdAction(id))?.name ?? null}
+        />
+
+        {/* Payment type */}
+
+        <FormField
+          name="paymentType"
+          control={form.control}
+          render={({ field }) => {
+            const currentId = field.value?.id?.toString() ?? '';
+
+            return (
+              <FormItem>
+                <FormLabel>Payment Type</FormLabel>
+                <FormControl>
+                  <Select
+                    value={currentId}
+                    onValueChange={(val) => {
+                      const id = Number(val);
+                      const selected = paymentTypesList.find((p) => p.id === id);
+                      if (selected) field.onChange(selected);
+                    }}
+                    disabled={!paymentTypesList?.length}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Choose payment type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentTypesList.map((p) => (
+                        <SelectItem key={p.id} value={p.id.toString()}>
+                          {p.name === 'cash' && <Banknote className="mr-2 h-4 w-4" />}
+                          {p.name === 'card' && <CreditCard className="mr-2 h-4 w-4" />}
+                          {p.name.charAt(0).toUpperCase() + p.name.slice(1)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
+        />
+
+        <SelectProductsField control={form.control} name="items" label="Items" />
 
         <Button
           variant="addition"
