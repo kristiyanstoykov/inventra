@@ -11,6 +11,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "npx tsx src/db/drizzle/seed.ts",
     "db:seed-products": "npx tsx src/db/drizzle/seed-products.ts",
+    "db:seed-payment-types": "npx tsx src/db/drizzle/seed-payment-types.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
