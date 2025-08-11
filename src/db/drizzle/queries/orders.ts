@@ -5,6 +5,9 @@ import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
 import { OrderSchema } from '@/lib/schema/orders';
 import z from 'zod';
+import { empty } from '@/lib/empty';
+import { insertOrderItem } from './orderItems';
+import { getProductsByIds } from './products';
 
 // Map for sortable columns in orders
 const orderColumnMap = {
@@ -222,10 +225,38 @@ export async function createOrder(data: z.infer<typeof OrderSchema>) {
   try {
     const { items, clientId, paymentType, date } = data;
 
-    const result = await db.insert(OrderTable).values(data);
+    const result = await db
+      .insert(OrderTable)
+      .values({
+        clientId,
+        warehouseId: 1, // TODO Change to dynamic warehouse ID, when warehouse logic is implemented
+        paymentType: paymentType.id,
+        createdAt: sql`STR_TO_DATE(${
+          date ? date : new Date().toISOString().slice(0, 19).replace('T', ' ')
+        }, '%Y-%m-%d %H:%i:%s')`,
+      })
+      .$returningId();
+
+    if (empty(result)) {
+      throw new AppError('Failed to create order', 'CREATE_FAILED');
+    }
+
+    if (empty(result[0])) {
+      throw new AppError('Failed to create order', 'CREATE_FAILED');
+    }
+
+    const orderId = result[0].id;
+
+    const products = await getProductsByIds(items.map((item) => item.productId));
+    if (products instanceof AppError) {
+      throw new AppError('Failed to fetch products for order items', 'FETCH_PRODUCTS_FAILED');
+    }
+
+    const itemsResult = await insertOrderItem(orderId, {});
+
     return result;
   } catch (error) {
     logger.logError(error, 'Repository: createOrder');
-    return new AppError('Failed to create order', 'CREATE_FAILED');
+    return new AppError(error.message || 'Failed to create order', 'CREATE_FAILED');
   }
 }

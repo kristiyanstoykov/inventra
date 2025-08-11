@@ -3,22 +3,28 @@ import { db } from '../db';
 import { OrderItemTable } from '../schema';
 import { logger } from '@/lib/logger';
 
-export async function insertOrderItem(
-  orderId: number,
-  productId: number,
-  quantity: number,
-  price: string
-) {
+export async function insertOrderItem(itemData: {
+  orderId: number;
+  productId: number;
+  quantity: number;
+  price: string;
+  name: string;
+  sku: string | null;
+  sn: string | null;
+}) {
   try {
     const result = await db.insert(OrderItemTable).values({
-      orderId,
-      productId,
-      quantity,
-      price,
+      productId: itemData.productId,
+      orderId: itemData.orderId,
+      quantity: itemData.quantity,
+      price: itemData.price,
+      name: itemData.name,
+      sku: itemData.sku,
+      sn: itemData.sn,
     });
     return result;
   } catch (error) {
     logger.logError(error, 'Repository: insertOrderItem');
-    return new AppError('Failed to insert order item', 'INSERT_FAILED');
+    return new AppError(error.message || 'Failed to insert order item', 'INSERT_FAILED');
   }
 }

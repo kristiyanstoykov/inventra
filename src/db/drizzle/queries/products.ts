@@ -140,6 +140,81 @@ export async function getProductById(id: number) {
   }
 }
 
+export async function getProductsByIds(ids: number[]) {
+  try {
+    if (!ids?.length) {
+      throw new AppError('No product IDs provided', 'BAD_REQUEST');
+    }
+
+    const [products, categoryRows, attributeRows] = await Promise.all([
+      db.select().from(ProductTable).where(inArray(ProductTable.id, ids)),
+      db
+        .select({
+          productId: ProductCategory.productId,
+          categoryId: ProductCategory.categoryId,
+        })
+        .from(ProductCategory)
+        .where(inArray(ProductCategory.productId, ids)),
+      db
+        .select({
+          productId: ProductAttributeTable.productId,
+          attributeId: ProductAttributeTable.attributeId,
+        })
+        .from(ProductAttributeTable)
+        .where(inArray(ProductAttributeTable.productId, ids)),
+    ]);
+
+    if (empty(products)) {
+      throw new AppError(`No products found for IDs: ${ids.join(', ')}`, 'NOT_FOUND');
+    }
+
+    // Build maps: productId -> [categoryIds] / [attributeIds]
+    const catMap = new Map<number, number[]>();
+    for (const { productId, categoryId } of categoryRows) {
+      const arr = catMap.get(productId);
+      if (arr) {
+        if (!arr.includes(categoryId)) arr.push(categoryId);
+      } else {
+        catMap.set(productId, [categoryId]);
+      }
+    }
+
+    const attrMap = new Map<number, number[]>();
+    for (const { productId, attributeId } of attributeRows) {
+      const arr = attrMap.get(productId);
+      if (arr) {
+        if (!arr.includes(attributeId)) arr.push(attributeId);
+      } else {
+        attrMap.set(productId, [attributeId]);
+      }
+    }
+
+    // Return in the same order as the input `ids` (skip IDs that weren't found)
+    const byId = new Map(products.map((p) => [p.id, p]));
+    const result = ids
+      .map((id) => {
+        const p = byId.get(id);
+        if (!p) return null;
+        return {
+          ...p,
+          categoryIds: catMap.get(id) ?? [],
+          attributeIds: attrMap.get(id) ?? [],
+        };
+      })
+      .filter(Boolean);
+
+    return result;
+  } catch (error) {
+    return new AppError(
+      error instanceof Error
+        ? error.message
+        : error instanceof AppError
+        ? error.toString()
+        : 'Failed to fetch products by IDs'
+    );
+  }
+}
+
 // Create a new product
 export async function createProduct(data: z.infer<typeof ProductSchema>) {
   try {
