@@ -5,6 +5,12 @@
 # prettier
 .prettierrc
 
+# logs
+*.log
+*/*.log
+*/*/*.log
+[project]/logs/*
+
 # dependencies
 /node_modules
 /.pnp
