@@ -1,13 +1,16 @@
 import { db } from '@/db/drizzle/db';
-import { OrderTable, OrderItemTable, ProductTable, UserTable } from '@/db/drizzle/schema';
-import { eq, sql, or, like, desc, asc, inArray } from 'drizzle-orm';
+import {
+  OrderTable,
+  OrderItemTable,
+  ProductTable,
+  UserTable,
+  PaymentTypesTable,
+} from '@/db/drizzle/schema';
+import { and, gte, eq, sql, or, like, desc, asc, inArray } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
 import { OrderSchema } from '@/lib/schema/orders';
 import z from 'zod';
-import { empty } from '@/lib/empty';
-import { insertOrderItem } from './orderItems';
-import { getProductsByIds } from './products';
 
 // Map for sortable columns in orders
 const orderColumnMap = {
@@ -19,21 +22,69 @@ const orderColumnMap = {
 
 type SortableOrderColumn = keyof typeof orderColumnMap;
 
+type OrderItemAgg = {
+  id: number;
+  productId: number;
+  name: string | null; // ако колоната е nullable
+  quantity: number;
+  price: number | string; // внимавай: SUM/price може да идва като string от MySQL
+};
+type OrderRow = {
+  id: number;
+  warehouseId: number | null;
+  clientId: number;
+  paymentTypeId: number | null;
+  paymentType: string | null;
+  status: number;
+  createdAt: Date | string; // зависи как идва от драйвера
+  clientFirstName: string | null;
+  clientLastName: string | null;
+  clientNames: string | null;
+  clientCompany: string | null;
+  orderTotal: string; // SUM в MySQL често идва като string
+  items: OrderItemAgg[]; // ← ето това ни трябва
+};
+
 export async function getAllOrders(
   page: number = 1,
   pageSize: number = 10,
   sortKey: SortableOrderColumn | null = null,
   sortDir: 'asc' | 'desc' = 'asc',
   search?: string
-) {
+): Promise<OrderRow[] | AppError> {
   try {
     const offset = (page - 1) * pageSize;
+
+    const itemsJson = sql<OrderItemAgg[]>`
+      COALESCE(
+        CAST(
+          CONCAT(
+            '[',
+            GROUP_CONCAT(
+              JSON_OBJECT(
+                'id', ${OrderItemTable.id},
+                'productId', ${OrderItemTable.productId},
+                'name', ${OrderItemTable.name},
+                'quantity', ${OrderItemTable.quantity},
+                'price', ${OrderItemTable.price}
+              )
+              ORDER BY ${OrderItemTable.id} ASC
+              SEPARATOR ','
+            ),
+            ']'
+          ) AS JSON
+        ),
+        JSON_ARRAY()
+      )
+    `;
 
     const query = db
       .select({
         id: OrderTable.id,
         warehouseId: OrderTable.warehouseId,
         clientId: OrderTable.clientId,
+        paymentTypeId: OrderTable.paymentType,
+        paymentType: PaymentTypesTable.name,
         status: OrderTable.status,
         createdAt: OrderTable.createdAt,
         clientFirstName: UserTable.firstName,
@@ -41,15 +92,16 @@ export async function getAllOrders(
         clientNames: sql<string>`CONCAT(${UserTable.firstName}, ' ', ${UserTable.lastName})`,
         clientCompany: UserTable.companyName,
         orderTotal: sql<string>`COALESCE(SUM(${OrderItemTable.price} * ${OrderItemTable.quantity}), 0)`,
+        items: itemsJson, // aggregated items as a JSON array
       })
       .from(OrderTable)
       .leftJoin(UserTable, eq(OrderTable.clientId, UserTable.id))
       .leftJoin(OrderItemTable, eq(OrderItemTable.orderId, OrderTable.id))
+      .leftJoin(PaymentTypesTable, eq(OrderTable.paymentType, PaymentTypesTable.id))
       .limit(pageSize)
       .offset(offset)
-      .groupBy(OrderTable.id); // Needed for SUM()
+      .groupBy(OrderTable.id);
 
-    // Apply search if provided
     if (search) {
       const loweredSearch = `%${search.toLowerCase()}%`;
       query.where(
@@ -62,16 +114,15 @@ export async function getAllOrders(
       );
     }
 
-    // Apply sorting
     if (sortKey) {
       const column = orderColumnMap[sortKey];
       query.orderBy(sortDir === 'asc' ? asc(column) : desc(column));
     }
 
     return await query;
-  } catch (error) {
+  } catch (error: any) {
     logger.logError(error, 'Repository: getAllOrders');
-    return new AppError('Failed to fetch orders');
+    return new AppError(error.message || 'Failed to fetch orders');
   }
 }
 
@@ -131,7 +182,7 @@ export async function getPaginatedOrders(
     };
   } catch (error: unknown) {
     logger.logError(error, 'Repository: getPaginatedOrders');
-    return new AppError('Failed to fetch paginated orders', 'FETCH_FAILED');
+    return new AppError(error.message || 'Failed to fetch paginated orders', 'FETCH_FAILED');
   }
 }
 
@@ -224,39 +275,127 @@ export async function getAllOrdersWithItems(
 export async function createOrder(data: z.infer<typeof OrderSchema>) {
   try {
     const { items, clientId, paymentType, date } = data;
+    const dt = date ? new Date(date) : new Date();
 
-    const result = await db
-      .insert(OrderTable)
-      .values({
-        clientId,
-        warehouseId: 1, // TODO Change to dynamic warehouse ID, when warehouse logic is implemented
-        paymentType: paymentType.id,
-        createdAt: sql`STR_TO_DATE(${
-          date ? date : new Date().toISOString().slice(0, 19).replace('T', ' ')
-        }, '%Y-%m-%d %H:%i:%s')`,
-      })
-      .$returningId();
-
-    if (empty(result)) {
-      throw new AppError('Failed to create order', 'CREATE_FAILED');
+    if (!(dt instanceof Date) || Number.isNaN(dt.getTime())) {
+      throw new AppError('Invalid date', 'INVALID_DATE');
     }
 
-    if (empty(result[0])) {
-      throw new AppError('Failed to create order', 'CREATE_FAILED');
-    }
+    const formatted = dt.toISOString().slice(0, 19).replace('T', ' ');
 
-    const orderId = result[0].id;
+    const res = await db.transaction(async (tx) => {
+      // 1) create order (omit createdAt and use DB default, or pass dt directly)
+      const inserted = await db
+        .insert(OrderTable)
+        .values({
+          clientId,
+          warehouseId: 1, // TODO Change to dynamic warehouse ID, when warehouse logic is implemented
+          paymentType: paymentType.id,
+          createdAt: sql`STR_TO_DATE(${formatted}, '%Y-%m-%d %H:%i:%s')`,
+        })
+        .$returningId();
 
-    const products = await getProductsByIds(items.map((item) => item.productId));
-    if (products instanceof AppError) {
-      throw new AppError('Failed to fetch products for order items', 'FETCH_PRODUCTS_FAILED');
-    }
+      if (!inserted?.[0]?.id) {
+        throw new AppError('Failed to create order', 'CREATE_FAILED');
+      }
+      const orderId = inserted[0].id as number;
 
-    const itemsResult = await insertOrderItem(orderId, {});
+      // 2) Reduce quantity automatically
+      for (const it of items) {
+        const updateRes = await tx
+          .update(ProductTable)
+          .set({
+            quantity: sql`${ProductTable.quantity} - ${it.quantity}`,
+            updatedAt: sql`NOW()`,
+          })
+          .where(
+            and(eq(ProductTable.id, it.productId), gte(ProductTable.quantity, String(it.quantity)))
+          );
 
-    return result;
-  } catch (error) {
+        const affectedRows =
+          Array.isArray(updateRes) && updateRes[0]?.affectedRows !== undefined
+            ? updateRes[0].affectedRows
+            : updateRes?.affectedRows;
+
+        if (!affectedRows) {
+          throw new AppError(
+            `Insufficient stock for product ${it.productId}`,
+            'INSUFFICIENT_STOCK'
+          );
+        }
+      }
+
+      // 3) Fetch the products (to denormalize name/sku/price into order_items)
+      const productIds = items.map((i) => i.productId);
+      const products = await tx
+        .select({
+          id: ProductTable.id,
+          name: ProductTable.name,
+          sku: ProductTable.sku,
+          sn: ProductTable.sn,
+          price: ProductTable.price,
+        })
+        .from(ProductTable)
+        .where(inArray(ProductTable.id, productIds));
+
+      if (!products?.length) {
+        throw new AppError('No products found for the provided IDs', 'NO_PRODUCTS_FOUND');
+      }
+
+      // 4) Add order items
+      await tx.insert(OrderItemTable).values(
+        products.map((p) => {
+          const match = items.find((i) => i.productId === p.id)!;
+          return {
+            orderId,
+            productId: p.id,
+            quantity: match.quantity ?? 1,
+            name: p.name,
+            sku: p.sku ?? null,
+            sn: p.sn ?? null,
+            price:
+              typeof p.price === 'string'
+                ? p.price
+                : p.price !== undefined
+                ? String(p.price)
+                : '0.00',
+            createdAt: sql`STR_TO_DATE(${formatted}, '%Y-%m-%d %H:%i:%s')`,
+          };
+        })
+      );
+
+      // if we get to here everything is ok
+      return { orderId };
+    });
+
+    return {
+      success: true,
+      message: `Order #${res.orderId} created successfully.`,
+    };
+  } catch (error: any) {
     logger.logError(error, 'Repository: createOrder');
-    return new AppError(error.message || 'Failed to create order', 'CREATE_FAILED');
+
+    let message = 'Failed to create order';
+
+    // MySQL / Drizzle errors often have a `cause` with details
+    if (error?.cause?.sqlMessage) {
+      message = error.cause.sqlMessage; // MySQL's own message
+    } else if (error?.sqlMessage) {
+      message = error.sqlMessage;
+    } else if (error?.message) {
+      message = error.message;
+    }
+
+    // Log full error object for debugging
+    console.error('Error creating order:', {
+      message,
+      code: error?.code,
+      errno: error?.errno,
+      sql: error?.sql,
+      params: error?.parameters ?? error?.params,
+      stack: error?.stack,
+    });
+
+    return new AppError(message, 'CREATE_FAILED');
   }
 }

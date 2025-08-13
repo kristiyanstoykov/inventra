@@ -27,6 +27,8 @@ import { SelectSearchClient } from './client-search-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { InferSelectModel } from 'drizzle-orm';
 import { PaymentTypesTable } from '@/db/drizzle/schema';
+import { createOrderAction } from '@/lib/actions/orders';
+import { AppError } from '@/lib/appError';
 
 export function OrderForm({
   order,
@@ -48,17 +50,27 @@ export function OrderForm({
 
   async function onSubmit(data: z.infer<typeof OrderSchema>) {
     try {
-      toast.success(
-        <>
-          Order added successfully!
-          <pre className="mt-2 w-full whitespace-pre-wrap">
-            {JSON.stringify(data, null, 2).replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-          </pre>
-        </>,
-        { dismissible: true }
-      );
+      // toast.success(
+      //   <>
+      //     Order added successfully!
+      //     <pre className="mt-2 w-full whitespace-pre-wrap">
+      //       {JSON.stringify(data, null, 2).replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+      //     </pre>
+      //   </>,
+      //   { dismissible: true }
+      // );
 
       const result = await createOrderAction(data);
+
+      if (result instanceof AppError) {
+        throw new Error(result.toString());
+      }
+
+      if (!result.success) {
+        throw new Error(result.message);
+      }
+
+      toast.success(result.message);
     } catch (err: any) {
       toast.error('There was an error adding the order: ' + (err.message || 'Unexpected error.'), {
         dismissible: true,

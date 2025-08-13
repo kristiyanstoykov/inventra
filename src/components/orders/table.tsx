@@ -9,11 +9,14 @@ import Link from 'next/link';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { OrderTable } from '@/db/drizzle/schema';
 import { InferSelectModel } from 'drizzle-orm';
-import { PencilIcon, TrashIcon, X } from 'lucide-react';
+import { Banknote, CreditCard, PencilIcon, TrashIcon, X } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 import { ActionButton } from '../ActionButton';
 import { OrderBadge } from '../ui/badge-order-status';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
+import { empty } from '@/lib/empty';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 
 type Orders = InferSelectModel<typeof OrderTable> & {
   clientFirstName: string;
@@ -21,6 +24,15 @@ type Orders = InferSelectModel<typeof OrderTable> & {
   clientNames: string;
   clientCompany: string;
   orderTotal: string;
+  paymentTypeId: number;
+  paymentType: string;
+  items?: {
+    id: number;
+    productId: number;
+    name: string;
+    quantity: number;
+    price: string;
+  }[];
 };
 
 function getColumns(): ColumnDef<Orders>[] {
@@ -28,9 +40,7 @@ function getColumns(): ColumnDef<Orders>[] {
     {
       accessorKey: 'id',
       accessorFn: (row) => row.id,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="ID" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="ID" column={column} />,
       cell: ({ row }) => {
         const id = row.original.id;
         const clientFirstName = row.original.clientFirstName;
@@ -41,7 +51,7 @@ function getColumns(): ColumnDef<Orders>[] {
             <span>
               <Link
                 href={`/orders/edit/${id}`}
-                className="text-blue-800 hover:underline"
+                className="text-blue-800 dark:text-blue-300 hover:underline"
               >
                 #{id} {clientFirstName} {clientLastName}
               </Link>
@@ -53,9 +63,7 @@ function getColumns(): ColumnDef<Orders>[] {
     {
       accessorKey: 'createdAt',
       accessorFn: (row) => row.createdAt,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="Date" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="Date" column={column} />,
       cell: ({ row }) => {
         const date = row.original.createdAt;
         const day = String(date.getDate()).padStart(2, '0');
@@ -65,11 +73,56 @@ function getColumns(): ColumnDef<Orders>[] {
       },
     },
     {
+      accessorKey: 'Items',
+      accessorFn: (row) => row.items,
+      cell: ({ row }) => {
+        const items = row.original.items;
+
+        return (
+          <div className="flex items-center gap-2">
+            {empty(items) || empty(items[0]) || empty(items[0].id) ? (
+              <span>No items found</span>
+            ) : (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="cursor-pointer">
+                    Click to view items
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent>
+                  <ul className="text-[0.8rem] my-1 list-disc list-inside pl-4 [&>li]:mt-2">
+                    {items.map((item) => (
+                      <li key={item.id} className="list-item">
+                        <div className="flex items-start gap-2">
+                          <span>
+                            Product: #{item.productId} {item.name}
+                            <br />
+                            Quantity: {item.quantity}
+                            <br />
+                            {item.quantity > 1 ? (
+                              <>
+                                Price: {item.quantity}x {item.price}:{' '}
+                                <span>{(Number(item.price) * item.quantity).toFixed(2)}</span>
+                              </>
+                            ) : (
+                              <>Price: {item.price}</>
+                            )}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: 'orderTotal',
       accessorFn: (row) => row.clientFirstName,
-      header: ({ column }) => (
-        <DataTableSortableColumnHeader title="Total" column={column} />
-      ),
+      header: ({ column }) => <DataTableSortableColumnHeader title="Total" column={column} />,
       cell: ({ row }) => {
         const orderTotal = row.original.orderTotal;
 
@@ -98,6 +151,44 @@ function getColumns(): ColumnDef<Orders>[] {
                   return <OrderBadge variant="cancelled">Cancelled</OrderBadge>;
                 default:
                   return <OrderBadge variant="secondary">Unknown</OrderBadge>;
+              }
+            })()}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'Payment type',
+      accessorFn: (row) => row.paymentType,
+      cell: ({ row }) => {
+        const paymentType = row.original.paymentType;
+
+        return (
+          <div className="flex items-center gap-2">
+            {(() => {
+              switch (paymentType) {
+                case 'cash':
+                  return (
+                    <OrderBadge
+                      variant="outline"
+                      className="border border-emerald-700 dark:border-emerald-300"
+                    >
+                      <Banknote className="size-4 text-emerald-600 dark:text-emerald-300" />
+                      Cash
+                    </OrderBadge>
+                  );
+                case 'card':
+                  return (
+                    <OrderBadge
+                      variant="outline"
+                      className="border border-amber-600 dark:border-amber-200"
+                    >
+                      <CreditCard className="size-4 text-amber-600 dark:text-amber-200" />
+                      Card
+                    </OrderBadge>
+                  );
+                default:
+                  return <OrderBadge variant="outline">Unknown</OrderBadge>;
               }
             })()}
           </div>

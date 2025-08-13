@@ -207,14 +207,10 @@ export const OrderTable = mysqlTable('orders', {
   warehouseId: int('warehouse_id')
     .notNull()
     .references(() => WarehouseTable.id),
-  paymentType: int('payment_type_id')
-    .notNull()
-    .references(() => PaymentTypesTable.id),
+  paymentType: int('payment_type_id').references(() => PaymentTypesTable.id),
   clientId: int('client_id').references(() => UserTable.id),
   status: varchar('status', { length: 50 }).notNull().default('pending'),
-  createdAt: datetime('created_at')
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 /** ========== Order Items ========== **/
@@ -230,7 +226,7 @@ export const OrderItemTable = mysqlTable('order_items', {
 
   // Same as product fields for convenience and keeping track of product info even if product's changed.
   name: varchar('name', { length: 255 }).notNull(),
-  sku: varchar('sku', { length: 255 }).unique(),
+  sku: varchar('sku', { length: 255 }),
   sn: varchar('sn', { length: 255 }), // serial number
   price: decimal('price', { precision: 10, scale: 2 }).notNull().default('0.00'),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
