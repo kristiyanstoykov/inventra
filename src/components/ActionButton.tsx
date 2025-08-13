@@ -39,9 +39,7 @@ export function ActionButton({
       const data = await action();
       if (data.error) {
         toast.error(data.message ?? 'Error');
-      }
-
-      if (data.message) {
+      } else if (data.message) {
         toast.success(data.message);
       }
 
@@ -60,9 +58,7 @@ export function ActionButton({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {areYouSureDescription}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{areYouSureDescription}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -77,10 +73,7 @@ export function ActionButton({
 
   return (
     <Button {...props} disabled={isLoading} onClick={performAction}>
-      <LoadingSwap
-        isLoading={isLoading}
-        className="inline-flex items-center gap-2"
-      >
+      <LoadingSwap isLoading={isLoading} className="inline-flex items-center gap-2">
         {props.children}
       </LoadingSwap>
     </Button>

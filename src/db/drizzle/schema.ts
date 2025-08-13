@@ -218,7 +218,7 @@ export const OrderItemTable = mysqlTable('order_items', {
   id: int('id').autoincrement().primaryKey().notNull(),
   orderId: int('order_id')
     .notNull()
-    .references(() => OrderTable.id),
+    .references(() => OrderTable.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   productId: int('product_id')
     .notNull()
     .references(() => ProductTable.id),

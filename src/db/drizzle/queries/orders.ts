@@ -11,6 +11,7 @@ import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
 import { OrderSchema } from '@/lib/schema/orders';
 import z from 'zod';
+import { empty } from '@/lib/empty';
 
 // Map for sortable columns in orders
 const orderColumnMap = {
@@ -140,12 +141,16 @@ export async function getPaginatedOrders(
   page: number = 1,
   pageSize: number = 10,
   sortKey?: string,
-  sortDir: 'asc' | 'desc' = 'asc',
+  sortDir: 'desc' | 'asc' = 'desc',
   search?: string
 ) {
   const validSortKey = (
-    sortKey && sortKey in orderColumnMap ? sortKey : null
+    sortKey && sortKey in orderColumnMap ? sortKey : 'id'
   ) as SortableOrderColumn | null;
+
+  if (empty(sortDir)) {
+    sortDir = 'desc';
+  }
 
   const orders = await getAllOrders(page, pageSize, validSortKey, sortDir, search);
   if (orders instanceof AppError) {
@@ -397,5 +402,30 @@ export async function createOrder(data: z.infer<typeof OrderSchema>) {
     });
 
     return new AppError(message, 'CREATE_FAILED');
+  }
+}
+
+export async function deleteOrder(id: number) {
+  try {
+    const result = await db.delete(OrderTable).where(eq(OrderTable.id, id));
+    // Drizzle returns an array with ResultSetHeader as first element
+    const affectedRows =
+      Array.isArray(result) && result[0]?.affectedRows !== undefined
+        ? result[0].affectedRows
+        : result?.affectedRows;
+
+    if (!affectedRows) {
+      throw new AppError('Order not found or already deleted', 'NOT_FOUND');
+    }
+
+    return {
+      success: true,
+      error: false,
+      message: `Successfully deleted order #${id}`,
+      deleted: affectedRows,
+    };
+  } catch (error) {
+    logger.logError(error, 'Repository: deleteOrder');
+    return new AppError(error.message || 'Failed to delete order', 'DELETE_FAILED');
   }
 }

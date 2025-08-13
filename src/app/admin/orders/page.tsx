@@ -42,7 +42,7 @@ async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const pageNum = parseInt(params.page ?? '1', 10) || 1;
   const perPage = parseInt(params.perPage ?? '10', 10) || 10;
-  const [sortKey = 'id', sortDir = 'asc'] =
+  const [sortKey = 'id', sortDir = 'desc'] =
     (params.sort?.split('.') as [string, 'asc' | 'desc']) ?? [];
   const search = params.search ?? '';
 

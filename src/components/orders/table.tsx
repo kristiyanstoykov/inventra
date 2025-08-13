@@ -9,7 +9,15 @@ import Link from 'next/link';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { OrderTable } from '@/db/drizzle/schema';
 import { InferSelectModel } from 'drizzle-orm';
-import { Banknote, CreditCard, PencilIcon, TrashIcon, X } from 'lucide-react';
+import {
+  ArrowUpDown,
+  Banknote,
+  ChevronsUpDown,
+  CreditCard,
+  PencilIcon,
+  TrashIcon,
+  X,
+} from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 import { ActionButton } from '../ActionButton';
@@ -17,6 +25,7 @@ import { OrderBadge } from '../ui/badge-order-status';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 import { empty } from '@/lib/empty';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { deleteOrderAction } from '@/lib/actions/orders';
 
 type Orders = InferSelectModel<typeof OrderTable> & {
   clientFirstName: string;
@@ -65,11 +74,21 @@ function getColumns(): ColumnDef<Orders>[] {
       accessorFn: (row) => row.createdAt,
       header: ({ column }) => <DataTableSortableColumnHeader title="Date" column={column} />,
       cell: ({ row }) => {
-        const date = row.original.createdAt;
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        return `${day}.${month}.${year}`;
+        const v = row.original.createdAt;
+        const d = v instanceof Date ? v : new Date(v);
+        if (Number.isNaN(d.getTime())) return '—';
+
+        const formatted = new Intl.DateTimeFormat('bg-BG', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+          timeZone: 'Europe/Sofia',
+        }).format(d);
+
+        return formatted;
       },
     },
     {
@@ -86,26 +105,26 @@ function getColumns(): ColumnDef<Orders>[] {
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="cursor-pointer">
-                    Click to view items
+                    Click to view items <ChevronsUpDown className="size-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent>
-                  <ul className="text-[0.8rem] my-1 list-disc list-inside pl-4 [&>li]:mt-2">
+                <PopoverContent className="p-3">
+                  <ul className="text-[0.8rem] my-1 list-disc pl-5 [&>li]:mt-2">
                     {items.map((item) => (
-                      <li key={item.id} className="list-item">
+                      <li key={item.id}>
                         <div className="flex items-start gap-2">
                           <span>
-                            Product: #{item.productId} {item.name}
+                            #{item.productId} {item.name}
                             <br />
                             Quantity: {item.quantity}
                             <br />
                             {item.quantity > 1 ? (
                               <>
                                 Price: {item.quantity}x {item.price}:{' '}
-                                <span>{(Number(item.price) * item.quantity).toFixed(2)}</span>
+                                {(Number(item.price) * item.quantity).toFixed(2)}
                               </>
                             ) : (
-                              <>Price: {item.price}</>
+                              <>Price: {parseFloat(item.price).toFixed(2)}</>
                             )}
                           </span>
                         </div>
@@ -252,14 +271,9 @@ function ActionCell({ id }: { id: number }) {
   const pathname = usePathname();
 
   async function handleDelete(id: number) {
-    const data = {
-      error: false,
-      message: `Successfully deleted product #${id}`,
-    };
+    const result = await deleteOrderAction(id);
 
-    toast.error('Unimplemented action');
-
-    return data;
+    return result;
   }
 
   return (
@@ -277,7 +291,7 @@ function ActionCell({ id }: { id: number }) {
       <ActionButton
         action={async () => handleDelete(id)}
         requireAreYouSure={true}
-        areYouSureDescription="This action cannot be undone. Are you sure you want to delete this order?"
+        areYouSureDescription={`This action cannot be undone. Are you sure you want to delete order #${id}?`}
         router={router}
         routerRefresh={true}
         variant={'destructive'}
