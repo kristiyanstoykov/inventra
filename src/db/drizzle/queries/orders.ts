@@ -5,6 +5,7 @@ import {
   ProductTable,
   UserTable,
   PaymentTypesTable,
+  UserRoleTable,
 } from '@/db/drizzle/schema';
 import { and, gte, eq, sql, or, like, desc, asc, inArray } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
@@ -12,6 +13,8 @@ import { logger } from '@/lib/logger';
 import { OrderSchema } from '@/lib/schema/orders';
 import z from 'zod';
 import { empty } from '@/lib/empty';
+import { generateRandomPassword, generateSalt, hashPassword } from '@/auth/core/passwordHasher';
+import { getRoleById } from './roles';
 
 // Map for sortable columns in orders
 const orderColumnMap = {
@@ -346,12 +349,102 @@ export async function createOrder(data: z.infer<typeof OrderSchema>) {
     const formatted = dt.toISOString().slice(0, 19).replace('T', ' ');
 
     const res = await db.transaction(async (tx) => {
-      // 1) create order (omit createdAt and use DB default, or pass dt directly)
-      const inserted = await db
+      // Resolve client: can be a numeric id or an object describing the client to (re)use / create
+      let resolvedClientId: number | null = null;
+
+      if (typeof clientId === 'number') {
+        resolvedClientId = clientId;
+      } else if (clientId && typeof clientId === 'object') {
+        const {
+          id: existingId,
+          email,
+          isCompany,
+          firstName,
+          lastName,
+          phone,
+          roleId,
+          companyName,
+          bulstat,
+          vatNumber,
+          address,
+        } = clientId;
+
+        if (existingId && Number.isFinite(existingId)) {
+          resolvedClientId = Number(existingId);
+        } else {
+          // Basic validation of required props
+          if (!email || !firstName || !lastName || !phone || typeof roleId !== 'number') {
+            throw new AppError('Invalid client object payload', 'VALIDATION_ERROR');
+          }
+
+          // Try to find existing client by unique email
+          const [existing] = await tx
+            .select({ id: UserTable.id })
+            .from(UserTable)
+            .where(eq(UserTable.email, email))
+            .limit(1);
+
+          if (existing) {
+            resolvedClientId = existing.id;
+          } else {
+            const salt = generateSalt();
+            const passwordHash = await hashPassword(generateRandomPassword(), salt);
+
+            const insertedClient = await tx
+              .insert(UserTable)
+              .values({
+                email,
+                isCompany,
+                firstName,
+                lastName,
+                salt,
+                password: passwordHash,
+                phone,
+                companyName: companyName ?? null,
+                bulstat: bulstat ?? null,
+                vatNumber: vatNumber ?? null,
+                address: address ?? null,
+                createdAt: sql`NOW()`,
+                updatedAt: sql`NOW()`,
+              })
+              .$returningId();
+
+            if (!insertedClient?.[0]?.id) {
+              throw new AppError('Failed to create client', 'CREATE_CLIENT_FAILED');
+            }
+            resolvedClientId = insertedClient[0].id as number;
+
+            const roleExists = await getRoleById(roleId);
+            if (roleExists instanceof AppError) {
+              return new AppError(roleExists.message, roleExists.code);
+            }
+            const result = await tx
+              .insert(UserRoleTable)
+              .values({
+                userId: resolvedClientId,
+                roleId: roleId,
+              })
+              .$returningId();
+
+            if (!result[0]?.id) {
+              throw new AppError('Failed to assign role to user', 'ASSIGN_ROLE_FAILED');
+            }
+          }
+        }
+      } else {
+        throw new AppError('clientId is required', 'VALIDATION_ERROR');
+      }
+
+      if (!resolvedClientId) {
+        throw new AppError('Could not resolve client id', 'VALIDATION_ERROR');
+      }
+
+      // 1) create order
+      const inserted = await tx
         .insert(OrderTable)
         .values({
-          clientId,
-          warehouseId: 1, // TODO Change to dynamic warehouse ID, when warehouse logic is implemented
+          clientId: resolvedClientId,
+          warehouseId: 1, // TODO: make dynamic when warehouse logic is implemented
           paymentType: paymentType.id,
           createdAt: sql`STR_TO_DATE(${formatted}, '%Y-%m-%d %H:%i:%s')`,
         })
@@ -460,6 +553,196 @@ export async function createOrder(data: z.infer<typeof OrderSchema>) {
 
     return new AppError(message, 'CREATE_FAILED');
   }
+}
+
+export async function updateOrder(orderId: number, data: OrderData) {
+  // Note: OrderSchema allows a union for clientId; here we accept only a number
+  const { items: newItemsInput, clientId, paymentType, date } = data;
+
+  // Normalize the date (we use NOW() for created/updatedAt, but if you want to store the date field—ensure it is valid)
+  const dt = date ? new Date(date) : new Date();
+  if (!(dt instanceof Date) || Number.isNaN(dt.getTime())) {
+    throw new AppError('Invalid date', 'INVALID_DATE');
+  }
+
+  // Prepare the new items as a map keyed by productId
+  const newItems = new Map<number, { productId: number; quantity: number }>();
+  for (const it of newItemsInput) {
+    // Aggregate quantities for duplicate productIds coming from the UI, if any
+    const prev = newItems.get(it.productId)?.quantity ?? 0;
+    newItems.set(it.productId, { productId: it.productId, quantity: prev + it.quantity });
+  }
+
+  return await db.transaction(async (tx) => {
+    // 0) Fetch current state of the order + its items
+    const currentItems = await tx
+      .select({
+        id: OrderItemTable.id,
+        productId: OrderItemTable.productId,
+        quantity: OrderItemTable.quantity,
+      })
+      .from(OrderItemTable)
+      .where(eq(OrderItemTable.orderId, orderId));
+
+    if (!currentItems?.length && empty(newItemsInput)) {
+      throw new AppError('Nothing to update', 'NO_CHANGES');
+    }
+
+    const oldMap = new Map<number, { id: number; productId: number; quantity: number }>();
+    for (const it of currentItems) oldMap.set(it.productId, it);
+
+    // 1) Lock the products in a deterministic order (union of old and new productIds)
+    const productIdsToLock = Array.from(
+      new Set<number>([...currentItems.map((x) => x.productId), ...Array.from(newItems.keys())])
+    ).sort((a, b) => a - b);
+
+    if (productIdsToLock.length) {
+      // SELECT ... FOR UPDATE to avoid lock waits during concurrent updates
+      await tx.execute(sql`
+        SELECT ${ProductTable.id}
+        FROM ${ProductTable}
+        WHERE ${inArray(ProductTable.id, productIdsToLock)}
+        ORDER BY ${ProductTable.id}
+        FOR UPDATE
+      `);
+    }
+    // 2) Return quantities for items that were decreased or removed
+    // deltaReturn = oldQty - newQty (if > 0 => add back to inventory)
+    for (const { productId, quantity: oldQty } of currentItems) {
+      const newQty = newItems.get(productId)?.quantity ?? 0;
+      const deltaReturn = oldQty - newQty;
+      if (deltaReturn > 0) {
+        const res = await tx
+          .update(ProductTable)
+          .set({
+            quantity: sql`${ProductTable.quantity} + ${deltaReturn}`,
+            updatedAt: sql`NOW()`,
+          })
+          .where(eq(ProductTable.id, productId));
+        // (optional) check affectedRows; no guard needed here
+      }
+    }
+
+    // 3) Subtract quantities for items that were increased or are new
+    // deltaTake = newQty - oldQty (if > 0 => subtract from inventory)
+    for (const [productId, { quantity: newQty }] of newItems) {
+      const oldQty = oldMap.get(productId)?.quantity ?? 0;
+      const deltaTake = newQty - oldQty;
+      if (deltaTake > 0) {
+        const updateRes = await tx
+          .update(ProductTable)
+          .set({
+            quantity: sql`${ProductTable.quantity} - ${deltaTake}`,
+            updatedAt: sql`NOW()`,
+          })
+          .where(
+            and(eq(ProductTable.id, productId), gte(ProductTable.quantity, String(deltaTake)))
+          );
+
+        const affectedRows =
+          Array.isArray(updateRes) && updateRes[0]?.affectedRows !== undefined
+            ? updateRes[0].affectedRows
+            : (updateRes as any)?.affectedRows;
+
+        if (!affectedRows) {
+          throw new AppError(
+            `Insufficient stock for product ${productId} (need +${deltaTake})`,
+            'INSUFFICIENT_STOCK'
+          );
+        }
+      }
+    }
+
+    // 4) Synchronize order_items
+    // 4.1) Delete removed ones
+    const toDelete = currentItems.filter((x) => !newItems.has(x.productId)).map((x) => x.productId);
+
+    if (toDelete.length) {
+      await tx
+        .delete(OrderItemTable)
+        .where(
+          and(eq(OrderItemTable.orderId, orderId), inArray(OrderItemTable.productId, toDelete))
+        );
+    }
+
+    // 4.2) Update changed quantities (where items exist and quantities differ)
+    const toUpdate = currentItems.filter((x) => {
+      const n = newItems.get(x.productId)?.quantity;
+      return typeof n === 'number' && n !== x.quantity;
+    });
+
+    for (const it of toUpdate) {
+      const newQty = newItems.get(it.productId)!.quantity;
+      await tx
+        .update(OrderItemTable)
+        .set({
+          quantity: newQty,
+        })
+        .where(
+          and(eq(OrderItemTable.orderId, orderId), eq(OrderItemTable.productId, it.productId))
+        );
+    }
+
+    // 4.3) Add the new items (those not present yet)
+    const toInsert = Array.from(newItems.values()).filter((x) => !oldMap.has(x.productId));
+    if (toInsert.length) {
+      // Fetch data for denormalization (name, sku, price...)
+      const ids = toInsert.map((x) => x.productId);
+      const products = await tx
+        .select({
+          id: ProductTable.id,
+          name: ProductTable.name,
+          sku: ProductTable.sku,
+          sn: ProductTable.sn,
+          price: ProductTable.price,
+        })
+        .from(ProductTable)
+        .where(inArray(ProductTable.id, ids));
+
+      if (products.length !== ids.length) {
+        throw new AppError('Some products not found for insertion', 'NO_PRODUCTS_FOUND');
+      }
+
+      await tx.insert(OrderItemTable).values(
+        products.map((p) => {
+          const match = toInsert.find((i) => i.productId === p.id)!;
+          return {
+            orderId,
+            productId: p.id,
+            quantity: match.quantity,
+            name: p.name,
+            sku: p.sku ?? null,
+            sn: p.sn ?? null,
+            price:
+              typeof p.price === 'string'
+                ? p.price
+                : p.price !== undefined
+                ? String(p.price)
+                : '0.00',
+            createdAt: sql`NOW()`,
+          };
+        })
+      );
+    }
+
+    // 5) Update the order header
+    const headerUpdate: Partial<typeof OrderTable.$inferInsert> = {
+      paymentType: paymentType.id,
+      updatedAt: new Date(),
+    };
+
+    if (typeof clientId === 'number' && Number.isFinite(clientId)) {
+      headerUpdate.clientId = clientId;
+    }
+
+    await tx.update(OrderTable).set(headerUpdate).where(eq(OrderTable.id, orderId));
+
+    return {
+      success: true,
+      message: `Order #${orderId} updated successfully.`,
+      orderId,
+    };
+  });
 }
 
 export async function deleteOrder(id: number) {

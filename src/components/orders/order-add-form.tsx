@@ -25,7 +25,7 @@ import { InitialItem, SelectProductsField } from './product-search-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { InferSelectModel } from 'drizzle-orm';
 import { PaymentTypesTable } from '@/db/drizzle/schema';
-import { createOrderAction } from '@/lib/actions/orders';
+import { createOrderAction, updateOrderAction } from '@/lib/actions/orders';
 import { AppError } from '@/lib/appError';
 import { ClientComboBox } from './client-search-field';
 import { SignInForm } from '@/auth/nextjs/components/SignInForm';
@@ -61,16 +61,11 @@ export function OrderForm({
     },
   });
 
-  // const form = useForm();
-
   async function onSubmit(data: z.infer<typeof OrderSchema>) {
-    // async function onSubmit(data) {
     try {
-      const parsedData = OrderSchema.safeParse(data);
-      toast.success(<pre>{JSON.stringify(parsedData, null, 2)}</pre>);
+      const action = order ? updateOrderAction.bind(null, order.id) : createOrderAction;
 
-      return;
-      const result = await createOrderAction(data);
+      const result = await action(data);
 
       if (result instanceof AppError) {
         throw new Error(result.toString());
@@ -210,8 +205,8 @@ export function OrderForm({
                   }}
                 >
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="existing">Existing user</TabsTrigger>
-                    {!order && <TabsTrigger value="new">Create User</TabsTrigger>}
+                    <TabsTrigger value="existing">Existing client</TabsTrigger>
+                    {!order && <TabsTrigger value="new">Create Client</TabsTrigger>}
                   </TabsList>
 
                   <TabsContent value="existing" className="mt-4">
@@ -223,9 +218,11 @@ export function OrderForm({
                     />
                   </TabsContent>
 
-                  <TabsContent value="new" className="mt-4 space-y-6">
-                    <UserFormFields form={form} roles={roles} base="clientId" />
-                  </TabsContent>
+                  {!order && (
+                    <TabsContent value="new" className="mt-4 space-y-6">
+                      <UserFormFields form={form} roles={roles} base="clientId" />
+                    </TabsContent>
+                  )}
                 </Tabs>
               </div>
             </CardContent>

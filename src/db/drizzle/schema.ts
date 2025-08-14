@@ -214,6 +214,9 @@ export const OrderTable = mysqlTable('orders', {
     .default(0),
   status: varchar('status', { length: 50 }).notNull().default('pending'),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .$onUpdateFn(() => sql`CURRENT_TIMESTAMP`),
 });
 
 /** ========== Order Items ========== **/
