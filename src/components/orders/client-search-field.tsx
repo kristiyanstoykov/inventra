@@ -1,166 +1,208 @@
 'use client';
 
+import { Check, ChevronsUpDown } from 'lucide-react';
 import * as React from 'react';
-import { useEffect, useMemo, useState, useCallback } from 'react';
-import { Control, FieldPath, FieldValues, useWatch } from 'react-hook-form';
-import debounce from 'lodash/debounce';
-import { getUsersByNameAction } from '@/lib/actions/users';
-
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { FieldPath, FieldValues, UseFormReturn } from 'react-hook-form';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   Command,
-  CommandInput,
-  CommandList,
   CommandEmpty,
   CommandGroup,
+  CommandInput,
   CommandItem,
+  CommandList,
+  CommandDialog, // ⬅️ add
 } from '@/components/ui/command';
-import { ChevronsUpDown, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { getUsersByNameAction } from '@/lib/actions/users';
+import { useIsMobile } from '@/hooks/use-mobile'; // ⬅️ add
 
-type ClientLite = { id: number; name: string };
-
-type ResolveLabelFn = (id: number) => Promise<string | null>;
+type Client = { id: number; name: string };
 
 type Props<TFieldValues extends FieldValues = FieldValues> = {
-  control: Control<TFieldValues>;
+  form: UseFormReturn<TFieldValues>;
   name?: FieldPath<TFieldValues>;
   label?: string;
   disabled?: boolean;
   buttonClassName?: string;
-  // Optional: provide a resolver to show the label when editing with a prefilled id
-  resolveLabel?: ResolveLabelFn;
+  initialClient?: Client | null;
 };
 
-export function SelectSearchClient<TFieldValues extends FieldValues = FieldValues>({
-  control,
+export function ClientComboBox<TFieldValues extends FieldValues = FieldValues>({
+  form,
   name,
   label = 'Client',
   disabled,
   buttonClassName,
-  resolveLabel,
+  initialClient,
 }: Props<TFieldValues>) {
-  const fieldName = (name as string) || ('clientId' as FieldPath<TFieldValues>);
+  const isMobile = useIsMobile(); // ⬅️ decide UI
+  const fieldName = (name as FieldPath<TFieldValues>) || ('clientId' as FieldPath<TFieldValues>);
+  const selectedId = form.watch(fieldName) as unknown as number | undefined;
 
-  const [clients, setClients] = useState<ClientLite[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedName, setSelectedName] = useState<string>('');
+  const [open, setOpen] = React.useState(false);
+  const [query, setQuery] = React.useState('');
+  const [clients, setClients] = React.useState<Client[]>([]);
+  const [loading, setLoading] = React.useState(false);
 
-  // Watch current field value so the trigger can reflect the picked item
-  const currentId = useWatch({ control, name: fieldName }) as unknown as number | undefined;
+  // Seed from initialClient (edit mode)
+  React.useEffect(() => {
+    if (!initialClient) return;
 
-  const runSearch = useCallback(async (value: string) => {
-    const q = value.trim();
-    if (!q) {
-      setClients([]);
-      return;
+    setClients((prev) => {
+      const without = prev.filter((c) => c.id !== initialClient.id);
+      return [initialClient, ...without];
+    });
+
+    if (!selectedId) {
+      form.setValue(fieldName, initialClient.id as never, {
+        shouldDirty: false,
+        shouldTouch: false,
+        shouldValidate: true,
+      });
     }
-    setLoading(true);
-    try {
-      const data = await getUsersByNameAction(q); // returns [{ id, name }]
-      setClients(data ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialClient?.id, initialClient?.name]);
 
-  const debouncedSearch = useMemo(() => debounce(runSearch, 300), [runSearch]);
+  // Debounce query
+  const [debouncedQuery, setDebouncedQuery] = React.useState('');
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 250);
+    return () => clearTimeout(t);
+  }, [query]);
 
-  useEffect(() => {
-    return () => debouncedSearch.cancel();
-  }, [debouncedSearch]);
+  // Search
+  React.useEffect(() => {
+    let cancelled = false;
 
-  // Resolve label for prefilled value in edit mode (optional)
-  useEffect(() => {
-    (async () => {
-      if (!currentId || selectedName) return;
+    const run = async () => {
+      const q = debouncedQuery.trim();
 
-      // Try to get from the current list first
-      const inList = clients.find((c) => c.id === currentId)?.name;
-      if (inList) {
-        setSelectedName(inList);
+      if (q.length < 2) {
+        // keep only selected/initial
+        setClients((prev) => {
+          const keepIds = new Set<number>();
+          if (selectedId) keepIds.add(selectedId);
+          if (initialClient) keepIds.add(initialClient.id);
+          return prev.filter((c) => keepIds.has(c.id));
+        });
         return;
       }
 
-      if (resolveLabel) {
-        const name = await resolveLabel(currentId);
-        if (name) setSelectedName(name);
+      setLoading(true);
+      try {
+        const data = await getUsersByNameAction(q);
+        if (!cancelled) {
+          let list = data;
+          const pins: Client[] = [];
+          if (selectedId) {
+            const sel = clients.find((c) => c.id === selectedId) || initialClient || null;
+            if (sel && !list.some((c) => c.id === sel.id)) pins.push(sel);
+          } else if (initialClient && !list.some((c) => c.id === initialClient.id)) {
+            pins.push(initialClient);
+          }
+          if (pins.length) list = [...pins, ...list];
+          setClients(list);
+        }
+      } catch {
+        if (!cancelled) toast.error('Failed to load clients');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentId, clients, resolveLabel]);
+    };
 
-  const triggerLabel =
-    selectedName ||
-    (currentId ? clients.find((c) => c.id === currentId)?.name : '') ||
-    'Select client';
+    run();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery]);
+
+  const selectedClient =
+    (selectedId && clients.find((c) => c.id === selectedId)) ||
+    (initialClient && selectedId === initialClient.id ? initialClient : undefined);
+
+  const triggerButton = (
+    <Button
+      type="button"
+      variant="outline"
+      role="combobox"
+      className={cn(
+        'w-full justify-between',
+        buttonClassName,
+        !selectedClient && 'text-muted-foreground'
+      )}
+      disabled={disabled}
+      onClick={() => setOpen(true)}
+    >
+      {selectedClient ? selectedClient.name : 'Select client'}
+      <ChevronsUpDown className="opacity-50" />
+    </Button>
+  );
+
+  const listContent = (
+    <Command shouldFilter={false}>
+      <CommandInput
+        placeholder="Search client..."
+        className="h-9"
+        value={query}
+        onValueChange={setQuery}
+      />
+      <CommandList>
+        <CommandEmpty>{loading ? 'Loading…' : 'No clients found.'}</CommandEmpty>
+        <CommandGroup>
+          {clients.map((client) => (
+            <CommandItem
+              key={client.id}
+              value={client.name}
+              onSelect={() => {
+                form.setValue(fieldName, client.id as never, {
+                  shouldDirty: true,
+                  shouldTouch: true,
+                  shouldValidate: true,
+                });
+                setOpen(false);
+              }}
+            >
+              {client.name}
+              <Check
+                className={cn('ml-auto', client.id === selectedId ? 'opacity-100' : 'opacity-0')}
+              />
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      </CommandList>
+    </Command>
+  );
 
   return (
     <FormField
-      control={control}
+      control={form.control}
       name={fieldName}
-      render={({ field }) => (
+      render={() => (
         <FormItem className="flex flex-col">
           <FormLabel>{label}</FormLabel>
-          <Popover>
-            <PopoverTrigger asChild>
-              <FormControl>
-                <Button
-                  type="button"
-                  variant="outline"
-                  role="combobox"
-                  disabled={disabled}
-                  className={cn(
-                    'w-[250px] justify-between',
-                    !field.value && 'text-muted-foreground',
-                    buttonClassName
-                  )}
-                >
-                  {triggerLabel}
-                  <ChevronsUpDown className="opacity-50" />
-                </Button>
-              </FormControl>
-            </PopoverTrigger>
 
-            <PopoverContent className="w-[250px] p-0">
-              <Command>
-                <CommandInput
-                  placeholder="Search client..."
-                  className="h-9"
-                  onValueChange={(value) => debouncedSearch(value)}
-                />
-                <CommandList>
-                  {loading && <CommandEmpty>Searching...</CommandEmpty>}
-                  {!loading && clients.length === 0 && (
-                    <CommandEmpty>No client found.</CommandEmpty>
-                  )}
-                  <CommandGroup>
-                    {clients.map((client) => (
-                      <CommandItem
-                        key={client.id}
-                        value={client.name}
-                        onSelect={() => {
-                          // react-hook-form expects to set the raw value
-                          field.onChange(client.id);
-                          setSelectedName(client.name);
-                        }}
-                      >
-                        {client.name}
-                        <Check
-                          className={cn(
-                            'ml-auto',
-                            client.id === currentId ? 'opacity-100' : 'opacity-0'
-                          )}
-                        />
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          {isMobile ? (
+            <>
+              <FormControl>{triggerButton}</FormControl>
+              <CommandDialog open={open} onOpenChange={setOpen}>
+                {listContent}
+              </CommandDialog>
+            </>
+          ) : (
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <FormControl>{triggerButton}</FormControl>
+              </PopoverTrigger>
+              <PopoverContent className="md:min-w-[350px] p-0 min-w-[260px]">
+                {listContent}
+              </PopoverContent>
+            </Popover>
+          )}
 
           <FormMessage />
         </FormItem>

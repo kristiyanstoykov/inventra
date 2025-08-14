@@ -128,12 +128,69 @@ export async function getAllOrders(
 }
 
 // Get an order by ID
-export async function getOrderById(id: number) {
+export async function getOrderById(id: number | string | Promise<number | string>) {
   try {
-    return await db.select().from(OrderTable).where(eq(OrderTable.id, id)).limit(1);
-  } catch (error) {
-    logger.logError(error, 'Repository: getOrderById');
-    return new AppError(`Failed to fetch order with ID: ${id}`);
+    const resolved = await Promise.resolve(id);
+    const orderId = Number(resolved);
+    if (!Number.isFinite(orderId)) {
+      return new AppError(`Invalid order ID: ${resolved}`, 'VALIDATION_ERROR');
+    }
+
+    const itemsJson = sql<string>`
+      COALESCE(
+        CAST(
+          CONCAT(
+            '[',
+            GROUP_CONCAT(
+              JSON_OBJECT(
+                'id', ${OrderItemTable.id},
+                'productId', ${OrderItemTable.productId},
+                'name', ${OrderItemTable.name},
+                'quantity', ${OrderItemTable.quantity},
+                'price', ${OrderItemTable.price}
+              )
+              ORDER BY ${OrderItemTable.id} ASC
+              SEPARATOR ','
+            ),
+            ']'
+          ) AS JSON
+        ),
+        JSON_ARRAY()
+      )
+    `;
+
+    const [order] = await db
+      .select({
+        id: OrderTable.id,
+        warehouseId: OrderTable.warehouseId,
+        clientId: OrderTable.clientId,
+        paymentTypeId: OrderTable.paymentType, // <- matches your column
+        paymentType: PaymentTypesTable.name,
+        status: OrderTable.status,
+        createdAt: OrderTable.createdAt,
+        clientFirstName: UserTable.firstName,
+        clientLastName: UserTable.lastName,
+        clientNames: sql<string>`CONCAT(${UserTable.firstName}, ' ', ${UserTable.lastName})`,
+        clientCompany: UserTable.companyName,
+        orderTotal: sql<string>`COALESCE(SUM(${OrderItemTable.price} * ${OrderItemTable.quantity}), 0)`,
+        items: itemsJson,
+      })
+      .from(OrderTable)
+      .leftJoin(UserTable, eq(OrderTable.clientId, UserTable.id))
+      .leftJoin(OrderItemTable, eq(OrderItemTable.orderId, OrderTable.id))
+      .leftJoin(PaymentTypesTable, eq(OrderTable.paymentType, PaymentTypesTable.id))
+      .where(eq(OrderTable.id, orderId))
+      .groupBy(OrderTable.id)
+      .limit(1);
+
+    if (!order) {
+      return new AppError(`No order found with ID: ${orderId}`, 'NOT_FOUND');
+    }
+
+    return order;
+  } catch (error: any) {
+    logger.logError(error, 'Repository: getOrderById'); // fixed label
+    return new AppError(error?.message || 'Failed to fetch order', 'FETCH_FAILED');
   }
 }
 

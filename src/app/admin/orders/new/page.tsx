@@ -14,6 +14,11 @@ export const metadata: Metadata = {
 
 export default async function NewOrderPage() {
   const paymentTypesList = await getAllPaymentTypes();
+  let roles = await getAllRoles();
+
+  if (roles instanceof AppError) {
+    roles = [];
+  }
 
   return (
     <div className="flex flex-col items-center mt-4">
@@ -27,7 +32,7 @@ export default async function NewOrderPage() {
           <CardTitle>New Order</CardTitle>
         </CardHeader>
         <CardContent className="flex-grow">
-          <OrderForm order={null} paymentTypesList={paymentTypesList} />
+          <OrderForm order={null} paymentTypesList={paymentTypesList} roles={roles} />
         </CardContent>
       </Card>
     </div>

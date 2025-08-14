@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { paymentTypes } from '@/db/drizzle/schema';
+import { userSchema } from './users';
 
 export const OrderItemSchema = z.object({
   productId: z.coerce.number().int().positive(),
@@ -17,9 +18,10 @@ export const OrderSchema = z.object({
   date: z.date({
     required_error: 'A date of order is required.',
   }),
-  clientId: z.number().int(),
   items: z.array(OrderItemSchema).min(1, 'Add at least one item to the order.'),
   paymentType: PaymentTypeSchema,
+  // clientId: z.number().int(),
+  clientId: z.union([z.coerce.number().int().positive(), userSchema]),
 });
 
 export type OrderType = z.infer<typeof OrderSchema>;

@@ -42,7 +42,19 @@ export type ProductFromServer = {
 };
 
 // ----- Value stored in the form -----
-export type OrderItem = { productId: number; quantity: number };
+export type OrderItem = {
+  productId: number;
+  quantity: number;
+  name?: string;
+  price?: number;
+  id?: number;
+};
+
+// ----- Initial item passed in (edit mode) -----
+export type InitialItem = {
+  orderItem: OrderItem;
+  productFromServer: ProductFromServer;
+};
 
 // ----- Internal render type -----
 export type ProductLite = {
@@ -50,8 +62,8 @@ export type ProductLite = {
   name: string;
   sku?: string | null;
   sn?: string | null;
-  price?: string | null;
-  availableQty: number; // derived from quantity (null -> 0)
+  price?: string | null; // keep string for rendering/total logic below
+  availableQty: number; // use a huge number when unknown
   categories?: Record<number, string>;
   attributes?: Record<number, string>;
 };
@@ -63,10 +75,23 @@ function toLite(p: ProductFromServer): ProductLite {
     sku: p.sku,
     sn: p.sn,
     price: p.price ?? null,
-    availableQty: Math.max(0, Number(p.quantity ?? 0)),
+    // null quantity -> unknown -> allow any qty (we’ll check Number.isFinite downstream)
+    availableQty: p.quantity == null ? Number.POSITIVE_INFINITY : Math.max(0, Number(p.quantity)),
     categories: p.categories,
     attributes: p.attributes,
   };
+}
+
+function isInitialItem(x: any): x is InitialItem {
+  return (
+    !!x &&
+    typeof x === 'object' &&
+    x.orderItem &&
+    typeof x.orderItem.productId === 'number' &&
+    typeof x.orderItem.quantity === 'number' &&
+    x.productFromServer &&
+    typeof x.productFromServer.id === 'number'
+  );
 }
 
 type Props<TFieldValues extends FieldValues = FieldValues> = {
@@ -75,8 +100,8 @@ type Props<TFieldValues extends FieldValues = FieldValues> = {
   label?: string;
   disabled?: boolean;
   className?: string;
-  // Optional: if we need to override resolving prefilled ids, pass a function.
-  // resolveProductsByIds?: (ids: number[]) => Promise<ProductFromServer[]>;
+  initialItems?: InitialItem[] | null;
+  resolveProductsByIds?: (ids: number[]) => Promise<ProductFromServer[]>;
 };
 
 export const formatBadges = (rec?: Record<number, string>) =>
@@ -88,24 +113,55 @@ export function SelectProductsField<TFieldValues extends FieldValues = FieldValu
   label = 'Products',
   disabled,
   className,
-}: // resolveProductsByIds = getProductsByIdsAction, // default to provided action
-Props<TFieldValues>) {
+  initialItems,
+  resolveProductsByIds,
+}: Props<TFieldValues>) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const normalizedInitial = initialItems ?? null;
 
   const fieldName = (name as FieldPath<TFieldValues>) || ('items' as FieldPath<TFieldValues>);
-
   const { field, fieldState } = useController<TFieldValues, any>({
     control,
     name: fieldName as any,
   });
-
   const value: OrderItem[] = Array.isArray(field.value) ? field.value : [];
 
   // cache: id -> ProductLite (for rendering)
   const [cache, setCache] = useState<Record<number, ProductLite>>({});
   const [results, setResults] = useState<ProductLite[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // ---------- PREPOPULATE (edit mode) ----------
+  useEffect(() => {
+    const list = Array.isArray(initialItems) ? initialItems.filter(isInitialItem) : [];
+    if (list.length === 0) return;
+    console.log('Prepopulating with initial items:');
+
+    // 1) Seed cache from product payload; let order snapshot override name/price if provided
+    setCache((prev) => {
+      const next = { ...prev };
+      for (const { orderItem, productFromServer } of list) {
+        const lite = toLite(productFromServer);
+        if (orderItem.name) lite.name = orderItem.name;
+        if (orderItem.price != null) lite.price = String(orderItem.price);
+        next[orderItem.productId] = lite;
+      }
+      return next;
+    });
+
+    // 2) Seed RHF value only if empty
+    if (!value.length) {
+      field.onChange(
+        list.map(({ orderItem }) => ({
+          productId: orderItem.productId,
+          quantity: Math.max(1, Number(orderItem.quantity || 1)),
+        }))
+      );
+    }
+    // Depend on the whole array identity so we re-run if it actually changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialItems, value.length]);
 
   // ---------- Search (Server Action) ----------
   const runSearch = useCallback(async (q: string) => {
@@ -133,36 +189,19 @@ Props<TFieldValues>) {
   const debouncedSearch = useMemo(() => debounce(runSearch, 300), [runSearch]);
   useEffect(() => () => debouncedSearch.cancel(), [debouncedSearch]);
 
-  // Resolve labels/stock for prefilled items (edit mode)
-  useEffect(() => {
-    (async () => {
-      const missingIds = value.map((i) => i.productId).filter((id) => !cache[id]);
-      if (!missingIds.length) return;
-      const fresh = null;
-      // const fresh = await resolveProductsByIds(missingIds);
-      const lite = (fresh ?? []).map(toLite);
-      setCache((prev) => {
-        const next = { ...prev };
-        for (const p of lite) next[p.id] = p;
-        return next;
-      });
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(value)]);
-
   // ---------- Helpers ----------
   const setItems = (next: OrderItem[]) => field.onChange(next);
 
   const clampQty = (pid: number, qty: number) => {
-    const stock = cache[pid]?.availableQty ?? 0;
-    if (stock <= 0) return 0;
+    const stock = cache[pid]?.availableQty;
+    if (!Number.isFinite(stock)) return Math.max(1, qty); // unknown stock: just enforce >=1
+    if ((stock as number) <= 0) return 0;
     if (qty < 1) return 1;
-    if (qty > stock) return stock;
+    if (qty > (stock as number)) return stock as number;
     return qty;
   };
 
   const addProduct = (p: ProductLite) => {
-    if ((p.availableQty ?? 0) <= 0) return; // block out-of-stock
     const idx = value.findIndex((i) => i.productId === p.id);
     if (idx >= 0) {
       const next = [...value];
@@ -174,9 +213,7 @@ Props<TFieldValues>) {
     setCache((prev) => ({ ...prev, [p.id]: p }));
   };
 
-  const removeProduct = (pid: number) => {
-    setItems(value.filter((i) => i.productId !== pid));
-  };
+  const removeProduct = (pid: number) => setItems(value.filter((i) => i.productId !== pid));
 
   const setQuantity = (pid: number, qty: number) => {
     const idx = value.findIndex((i) => i.productId === pid);
@@ -214,6 +251,7 @@ Props<TFieldValues>) {
                 variant="outline"
                 className="w-full justify-between"
                 onClick={() => setOpen(true)}
+                disabled={disabled}
               >
                 Search & add products
                 <ChevronsUpDown className="opacity-50" />
@@ -237,7 +275,7 @@ Props<TFieldValues>) {
                       {results.map((p) => {
                         const already = value.some((i) => i.productId === p.id);
                         const stock = p.availableQty;
-                        const disabledRow = stock <= 0;
+                        const disabledRow = Number.isFinite(stock) && stock <= 0; // unknown stock stays enabled
                         return (
                           <ProductListCommandItemMobile
                             key={p.id}
@@ -263,6 +301,7 @@ Props<TFieldValues>) {
                     variant="outline"
                     role="combobox"
                     className="w-[360px] justify-between"
+                    disabled={disabled}
                   >
                     Search & add products
                     <ChevronsUpDown className="opacity-50" />
@@ -289,7 +328,7 @@ Props<TFieldValues>) {
                       {results.map((p) => {
                         const already = value.some((i) => i.productId === p.id);
                         const stock = p.availableQty;
-                        const disabledRow = stock <= 0;
+                        const disabledRow = Number.isFinite(stock) && stock <= 0; // unknown stock stays enabled
                         return (
                           <ProductListCommandItem
                             key={p.id}
@@ -316,7 +355,7 @@ Props<TFieldValues>) {
               <>
                 {value.map((item) => {
                   const p = cache[item.productId];
-                  const stock = p?.availableQty ?? 0;
+                  const stock = p?.availableQty;
 
                   return (
                     <div
@@ -333,8 +372,12 @@ Props<TFieldValues>) {
                           {p?.sku ? `SKU: ${p.sku}` : null}
                           {p?.sku && p?.sn ? ' • ' : ''}
                           {p?.sn ? `SN: ${p.sn}` : null}
-                          {p?.sku || p?.sn ? ' • ' : ''}Stock: {stock}
-                          {p?.price ? ` • Price: ${p.price}` : ''}
+                          {p?.sku || p?.sn ? ' • ' : ''}
+                          Stock:{' '}
+                          {Number.isFinite(stock) && stock !== Number.MAX_SAFE_INTEGER
+                            ? stock
+                            : '—'}
+                          {p?.price != null ? ` • Price: ${p.price}` : ''}
                         </div>
                         {(p?.categories || p?.attributes) && (
                           <div className="text-[11px] text-muted-foreground truncate">
@@ -353,7 +396,7 @@ Props<TFieldValues>) {
                           variant="outline"
                           className="h-8 w-8"
                           onClick={() => dec(item.productId)}
-                          disabled={stock <= 0}
+                          disabled={Number.isFinite(stock) && (stock ?? 0) <= 0}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
@@ -364,8 +407,12 @@ Props<TFieldValues>) {
                           value={item.quantity}
                           onChange={(e) => setQuantity(item.productId, Number(e.target.value || 0))}
                           min={1}
-                          max={stock > 0 ? stock : 1}
-                          disabled={stock <= 0}
+                          max={
+                            Number.isFinite(stock) && stock !== Number.MAX_SAFE_INTEGER
+                              ? (stock as number)
+                              : undefined
+                          }
+                          disabled={Number.isFinite(stock) && (stock ?? 0) <= 0}
                         />
                         <Button
                           type="button"
@@ -373,7 +420,7 @@ Props<TFieldValues>) {
                           variant="outline"
                           className="h-8 w-8"
                           onClick={() => inc(item.productId)}
-                          disabled={stock <= 0}
+                          disabled={Number.isFinite(stock) && (stock ?? 0) <= 0}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>

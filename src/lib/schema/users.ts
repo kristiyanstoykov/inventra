@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const userSchema = z
   .object({
     id: z.number().optional(), // optional for create
-    name: z.string(),
+    // name: z.string(),
     email: z.string().email(),
     isCompany: z.boolean(),
     firstName: z.string().min(1, 'First name is required'),

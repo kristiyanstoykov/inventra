@@ -9,20 +9,10 @@ import Link from 'next/link';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { OrderTable } from '@/db/drizzle/schema';
 import { InferSelectModel } from 'drizzle-orm';
-import {
-  ArrowUpDown,
-  Banknote,
-  ChevronsUpDown,
-  CreditCard,
-  PencilIcon,
-  TrashIcon,
-  X,
-} from 'lucide-react';
+import { Banknote, ChevronsUpDown, CreditCard, PencilIcon, TrashIcon } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
-import { toast } from 'sonner';
 import { ActionButton } from '../ActionButton';
 import { OrderBadge } from '../ui/badge-order-status';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 import { empty } from '@/lib/empty';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { deleteOrderAction } from '@/lib/actions/orders';

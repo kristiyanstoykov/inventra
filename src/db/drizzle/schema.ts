@@ -208,7 +208,10 @@ export const OrderTable = mysqlTable('orders', {
     .notNull()
     .references(() => WarehouseTable.id),
   paymentType: int('payment_type_id').references(() => PaymentTypesTable.id),
-  clientId: int('client_id').references(() => UserTable.id),
+  clientId: int('client_id')
+    .references(() => UserTable.id)
+    .notNull()
+    .default(0),
   status: varchar('status', { length: 50 }).notNull().default('pending'),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
