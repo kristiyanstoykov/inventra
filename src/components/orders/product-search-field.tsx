@@ -118,7 +118,6 @@ export function SelectProductsField<TFieldValues extends FieldValues = FieldValu
 }: Props<TFieldValues>) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
-  const normalizedInitial = initialItems ?? null;
 
   const fieldName = (name as FieldPath<TFieldValues>) || ('items' as FieldPath<TFieldValues>);
   const { field, fieldState } = useController<TFieldValues, any>({
@@ -379,13 +378,24 @@ export function SelectProductsField<TFieldValues extends FieldValues = FieldValu
                             : '—'}
                           {p?.price != null ? ` • Price: ${p.price}` : ''}
                         </div>
-                        {(p?.categories || p?.attributes) && (
-                          <div className="text-[11px] text-muted-foreground truncate">
-                            {p?.categories ? `Cat: ${formatBadges(p.categories)}` : null}
-                            {p?.categories && p?.attributes ? ' • ' : ''}
-                            {p?.attributes ? `Attr: ${formatBadges(p.attributes)}` : null}
-                          </div>
-                        )}
+                        {(() => {
+                          const hasCategories = Array.isArray(p?.categories)
+                            ? p?.categories.length > 0
+                            : p?.categories && Object.keys(p.categories).length > 0;
+                          const hasAttributes = Array.isArray(p?.attributes)
+                            ? p?.attributes.length > 0
+                            : p?.attributes && Object.keys(p.attributes).length > 0;
+
+                          if (!hasCategories && !hasAttributes) return null;
+
+                          return (
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              {hasCategories && `Cat: ${formatBadges(p?.categories)}`}
+                              {hasCategories && hasAttributes && ' • '}
+                              {p.attributes ? `Attr: ${formatBadges(p.attributes)}` : null}
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Qty controls */}

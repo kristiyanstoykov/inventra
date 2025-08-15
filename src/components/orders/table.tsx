@@ -9,7 +9,14 @@ import Link from 'next/link';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { OrderTable } from '@/db/drizzle/schema';
 import { InferSelectModel } from 'drizzle-orm';
-import { Banknote, ChevronsUpDown, CreditCard, PencilIcon, TrashIcon } from 'lucide-react';
+import {
+  Banknote,
+  ChevronsUpDown,
+  Clipboard,
+  CreditCard,
+  PencilIcon,
+  TrashIcon,
+} from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { ActionButton } from '../ActionButton';
 import { OrderBadge } from '../ui/badge-order-status';
@@ -287,6 +294,20 @@ function ActionCell({ id }: { id: number }) {
         variant={'destructive'}
       >
         <TrashIcon className="size-4" />
+      </ActionButton>
+      <ActionButton
+        variant={'secondary'}
+        className="border border-emerald-500 bg-emerald-100 dark:bg-emerald-700"
+        action={async () => {
+          await new Promise((res) => setTimeout(res, 1000));
+          console.log(`Order #${id}`);
+          return {
+            error: true,
+            message: 'Unimplemented action',
+          };
+        }}
+      >
+        <Clipboard className="size-4" />
       </ActionButton>
     </div>
   );

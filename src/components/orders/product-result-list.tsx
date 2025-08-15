@@ -33,13 +33,24 @@ export function ProductListCommandItemMobile({
           {p.price ? ` • Price: ${p.price}` : ''}
         </div>
         {/* show a glimpse of categories/attributes */}
-        {(p.categories || p.attributes) && (
-          <div className="text-[11px] text-muted-foreground truncate">
-            {p.categories ? `Cat: ${formatBadges(p.categories)}` : null}
-            {p.categories && p.attributes ? ' • ' : ''}
-            {p.attributes ? `Attr: ${formatBadges(p.attributes)}` : null}
-          </div>
-        )}
+        {(() => {
+          const hasCategories = Array.isArray(p?.categories)
+            ? p?.categories.length > 0
+            : p?.categories && Object.keys(p.categories).length > 0;
+          const hasAttributes = Array.isArray(p?.attributes)
+            ? p?.attributes.length > 0
+            : p?.attributes && Object.keys(p.attributes).length > 0;
+
+          if (!hasCategories && !hasAttributes) return null;
+
+          return (
+            <div className="text-[11px] text-muted-foreground truncate">
+              {hasCategories && `Cat: ${formatBadges(p?.categories)}`}
+              {hasCategories && hasAttributes && ' • '}
+              {p.attributes ? `Attr: ${formatBadges(p.attributes)}` : null}
+            </div>
+          );
+        })()}
       </div>
       {already ? (
         <Check className="shrink-0" />
@@ -82,13 +93,24 @@ export function ProductListCommandItem({
           {p.price ? ` • Price: ${p.price}` : ''}
         </div>
         {/* show a glimpse of categories/attributes */}
-        {(p.categories || p.attributes) && (
-          <div className="text-[11px] text-muted-foreground truncate">
-            {p.categories ? `Cat: ${formatBadges(p.categories)}` : null}
-            {p.categories && p.attributes ? ' • ' : ''}
-            {p.attributes ? `Attr: ${formatBadges(p.attributes)}` : null}
-          </div>
-        )}
+        {(() => {
+          const hasCategories = Array.isArray(p?.categories)
+            ? p?.categories.length > 0
+            : p?.categories && Object.keys(p.categories).length > 0;
+          const hasAttributes = Array.isArray(p?.attributes)
+            ? p?.attributes.length > 0
+            : p?.attributes && Object.keys(p.attributes).length > 0;
+
+          if (!hasCategories && !hasAttributes) return null;
+
+          return (
+            <div className="text-[11px] text-muted-foreground truncate">
+              {hasCategories && `Cat: ${formatBadges(p?.categories)}`}
+              {hasCategories && hasAttributes && ' • '}
+              {p.attributes ? `Attr: ${formatBadges(p.attributes)}` : null}
+            </div>
+          );
+        })()}
       </div>
       {already ? (
         <Check className="shrink-0" />

@@ -637,6 +637,8 @@ export async function getProductsBySearch(search: string) {
         productId: ProductAttributeTable.productId,
         attributeId: AttributeTable.id,
         attributeName: AttributeTable.name,
+        attributeValue: AttributeTable.value,
+        attributeUnit: AttributeTable.unit,
       })
       .from(ProductAttributeTable)
       .innerJoin(AttributeTable, eq(ProductAttributeTable.attributeId, AttributeTable.id))
@@ -644,7 +646,9 @@ export async function getProductsBySearch(search: string) {
 
     const attributesByProductId = productAttributes.reduce((acc, curr) => {
       if (!acc[curr.productId]) acc[curr.productId] = {};
-      acc[curr.productId][curr.attributeId] = curr.attributeName;
+      acc[curr.productId][curr.attributeId] = `${curr.attributeName}: ${curr.attributeValue} ${
+        curr.attributeUnit || ''
+      }`;
       return acc;
     }, {} as Record<number, Record<number, string>>);
 
