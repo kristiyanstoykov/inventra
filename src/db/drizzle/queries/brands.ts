@@ -1,8 +1,9 @@
 import { db } from '@/db/drizzle/db';
 import { ProductBrandTable } from '@/db/drizzle/schema';
-import { eq, sql, desc, asc } from 'drizzle-orm';
+import { and, eq, sql, desc, asc } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
 import { empty } from '@/lib/empty';
+import { logger } from '@/lib/logger';
 
 export const columnMap = {
   id: ProductBrandTable.id,
@@ -135,6 +136,17 @@ export async function getPaginatedBrands(
 
 export async function createBrand(name: string, website: string) {
   try {
+    const existing = await db
+      .select()
+      .from(ProductBrandTable)
+      .where(and(sql`LOWER(${ProductBrandTable.name}) = LOWER(${name})`))
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Already exists
+      return new AppError('Brand already exists with the same name', 'BRAND_EXISTS');
+    }
+
     const [result] = await db
       .insert(ProductBrandTable)
       .values({ name, website, createdAt: sql`CURRENT_TIMESTAMP()` })
@@ -191,11 +203,22 @@ export async function getBrandById(id: number) {
   }
 }
 
-export async function updateBrandById(id: number, name: string, website: string, createdAt: Date) {
+export async function updateBrandById(id: number, name: string, website: string, updatedAt: Date) {
   try {
+    const existing = await db
+      .select()
+      .from(ProductBrandTable)
+      .where(and(sql`LOWER(${ProductBrandTable.name}) = LOWER(${name})`))
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Already exists
+      return new AppError('Brand already exists with the same name', 'BRAND_EXISTS');
+    }
+
     const result = await db
       .update(ProductBrandTable)
-      .set({ name, website, createdAt })
+      .set({ name, website, updatedAt })
       .where(eq(ProductBrandTable.id, id));
 
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment

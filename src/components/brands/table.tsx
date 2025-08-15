@@ -49,7 +49,7 @@ function getColumns(): ColumnDef<Brands>[] {
         const website = row.original.website;
         return (
           <div className="flex items-center gap-2">
-            <span>{website}</span>
+            <span>{website || '-'}</span>
           </div>
         );
       },

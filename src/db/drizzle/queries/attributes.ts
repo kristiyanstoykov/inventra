@@ -1,6 +1,6 @@
 import { db } from '@/db/drizzle/db';
 import { AttributeTable } from '@/db/drizzle/schema';
-import { eq, sql, desc, asc } from 'drizzle-orm';
+import { and, eq, sql, desc, asc, isNull } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
 import { empty } from '@/lib/empty';
@@ -142,7 +142,32 @@ export async function getPaginatedAttributes(
 
 export async function createAttribute(name: string, value: string, unit?: string) {
   try {
+    // First check if it already exists
+    const existing = await db
+      .select()
+      .from(AttributeTable)
+      .where(
+        and(
+          sql`LOWER(${AttributeTable.name}) = LOWER(${name})`,
+          eq(AttributeTable.value, value),
+          unit === undefined
+            ? isNull(AttributeTable.unit)
+            : sql`LOWER(${AttributeTable.unit}) = LOWER(${unit})`
+        )
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Already exists
+      return new AppError(
+        'Attribute already exists with the same name, value, and unit',
+        'ATTRIBUTE_EXISTS'
+      );
+    }
+
+    // Insert if not found
     const [result] = await db.insert(AttributeTable).values({ name, value, unit }).$returningId();
+
     return result?.id ?? null;
   } catch (error) {
     logger.logError(error, 'Repository: createAttribute');
@@ -205,6 +230,28 @@ export async function updateAttributeById(id: number, name: string, value: strin
     // @ts-ignore
     if (result.affectedRows === 0) {
       throw new Error(`Attribute with ID ${id} not found or not updated`);
+    }
+
+    const existing = await db
+      .select()
+      .from(AttributeTable)
+      .where(
+        and(
+          sql`LOWER(${AttributeTable.name}) = LOWER(${name})`,
+          eq(AttributeTable.value, value),
+          unit === undefined
+            ? isNull(AttributeTable.unit)
+            : sql`LOWER(${AttributeTable.unit}) = LOWER(${unit})`
+        )
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
+      // Already exists
+      return new AppError(
+        'Attribute already exists with the same name, value, and unit',
+        'ATTRIBUTE_EXISTS'
+      );
     }
 
     return id;

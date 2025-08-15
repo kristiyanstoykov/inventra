@@ -13,6 +13,7 @@ import { empty } from '@/lib/empty';
 import { ProductSchema } from '@/lib/schema/products';
 import z from 'zod';
 import { normalizeNumber } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 export const columnMap = {
   id: ProductTable.id,
@@ -228,8 +229,8 @@ export async function createProduct(data: z.infer<typeof ProductSchema>) {
       price: data.price.toString(),
       salePrice: data.salePrice ? data.salePrice.toString() : null,
       deliveryPrice: data.deliveryPrice.toString(),
-      quantity: data.quantity,
-      brandId: null,
+      quantity: data.quantity.toString(),
+      brandId: typeof data.brandId === 'number' && data.brandId > 0 ? data.brandId : null,
     };
 
     const [result] = await db.insert(ProductTable).values(product_data).$returningId();
@@ -240,38 +241,42 @@ export async function createProduct(data: z.infer<typeof ProductSchema>) {
 
     const errorMessages: string[] = [];
 
-    const [resultCategory] = await db
-      .insert(ProductCategory)
-      .values(
-        category_ids
-          .filter((categoryId): categoryId is number => typeof categoryId === 'number')
-          .map((categoryId) => ({
-            productId: result.id,
-            categoryId,
-          }))
-      )
-      .$returningId();
+    if (!empty(category_ids) && Array.isArray(category_ids)) {
+      const [resultCategory] = await db
+        .insert(ProductCategory)
+        .values(
+          category_ids
+            .filter((categoryId): categoryId is number => typeof categoryId === 'number')
+            .map((categoryId) => ({
+              productId: result.id,
+              categoryId,
+            }))
+        )
+        .$returningId();
 
-    if (!resultCategory.id) {
-      errorMessages.push('Product was created, but failed to associate categories with product');
+      if (!resultCategory.id) {
+        errorMessages.push('Product was created, but failed to associate categories with product');
+      }
     }
 
-    const [resultAttribute] = await db
-      .insert(ProductAttributeTable)
-      .values(
-        attribute_ids
-          .filter((attributeId): attributeId is number => typeof attributeId === 'number')
-          .map((attributeId) => ({
-            productId: result.id,
-            attributeId,
-          }))
-      )
-      .$returningId();
+    if (!empty(attribute_ids) && Array.isArray(attribute_ids)) {
+      const [resultAttribute] = await db
+        .insert(ProductAttributeTable)
+        .values(
+          attribute_ids
+            .filter((attributeId): attributeId is number => typeof attributeId === 'number')
+            .map((attributeId) => ({
+              productId: result.id,
+              attributeId,
+            }))
+        )
+        .$returningId();
 
-    if (!resultAttribute.id) {
-      errorMessages.push(
-        'Product was created, categories were inserted, but failed to associate attributes with product'
-      );
+      if (!resultAttribute.id) {
+        errorMessages.push(
+          'Product was created, categories were inserted, but failed to associate attributes with product'
+        );
+      }
     }
 
     return {
@@ -279,7 +284,7 @@ export async function createProduct(data: z.infer<typeof ProductSchema>) {
       errorMessage: errorMessages.length ? errorMessages.join(' ') : null,
     };
   } catch (error: unknown) {
-    // logger.logError(error, 'Repository: createProduct');
+    logger.logError(error, 'Repository: createProduct');
     return new AppError(error instanceof Error ? error.message : 'Failed to create product');
   }
 }

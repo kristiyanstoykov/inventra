@@ -25,11 +25,7 @@ export type BrandType = {
   website?: string | null;
 };
 
-export function BrandForm({
-  brand,
-}: {
-  brand: Pick<BrandType, 'id' | 'name' | 'website'> | null;
-}) {
+export function BrandForm({ brand }: { brand: Pick<BrandType, 'id' | 'name' | 'website'> | null }) {
   const router = useRouter();
 
   const form = useForm<z.infer<typeof brandSchema>>({
@@ -42,9 +38,7 @@ export function BrandForm({
 
   async function onSubmit(data: z.infer<typeof brandSchema>) {
     try {
-      const action = brand
-        ? updateBrandAction.bind(null, brand.id)
-        : createBrandAction;
+      const action = brand ? updateBrandAction.bind(null, brand.id) : createBrandAction;
 
       const res = await action(data);
 
@@ -52,24 +46,26 @@ export function BrandForm({
         throw new Error(res.message || 'An error occurred while processing.');
       }
 
-      form.reset();
-      router.refresh();
-      toast.success('Attribute added successfully');
+      if (!brand) {
+        form.reset();
+        toast.success('Attribute added successfully');
+        router.push(`/brands/edit/${res.attributeId}`);
+      } else {
+        toast.success('Attribute updated successfully');
+        router.refresh();
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(
-        'There was an error adding the attribute: ' +
-          (err.message || 'Unexpected error.')
+        'There was an error adding the attribute: ' + (err.message || 'Unexpected error.')
       );
     }
   }
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6 @container"
-      >
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 @container">
         <FormField
           name="name"
           control={form.control}
@@ -99,11 +95,7 @@ export function BrandForm({
           )}
         />
 
-        <Button
-          disabled={form.formState.isSubmitting}
-          type="submit"
-          className="w-full"
-        >
+        <Button disabled={form.formState.isSubmitting} type="submit" className="w-full">
           <LoadingSwap isLoading={form.formState.isSubmitting}>
             {brand ? 'Update Brand' : 'Add Brand'}
           </LoadingSwap>

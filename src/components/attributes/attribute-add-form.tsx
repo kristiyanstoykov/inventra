@@ -16,12 +16,8 @@ import { Button } from '@/components/ui/button';
 import { LoadingSwap } from '@/components/LoadingSwap';
 import { toast } from 'sonner';
 import { attributeSchema } from '@/lib/schema/attributes';
-import {
-  createAttributeAction,
-  updateAttributeAction,
-} from '@/lib/actions/attributes';
+import { createAttributeAction, updateAttributeAction } from '@/lib/actions/attributes';
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
 
 type AttributeType = {
   id: number;
@@ -58,24 +54,23 @@ export function AttributeForm({
         throw new Error(res.message || 'An error occurred while processing.');
       }
 
-      form.reset();
+      if (!attribute) {
+        form.reset();
+      }
+
       router.refresh();
       toast.success('Attribute added successfully');
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       toast.error(
-        'There was an error adding the attribute: ' +
-          (err.message || 'Unexpected error.')
+        'There was an error adding the attribute: ' + (err.message || 'Unexpected error.')
       );
     }
   }
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6 @container"
-      >
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 @container">
         <FormField
           name="name"
           control={form.control}
@@ -106,9 +101,7 @@ export function AttributeForm({
                       value={field.value ?? ''}
                       onChange={(e) =>
                         field.onChange(
-                          isNaN(e.target.valueAsNumber)
-                            ? null
-                            : e.target.valueAsNumber
+                          isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber
                         )
                       }
                     />
@@ -134,11 +127,7 @@ export function AttributeForm({
           </div>
         </div>
 
-        <Button
-          disabled={form.formState.isSubmitting}
-          type="submit"
-          className="w-full"
-        >
+        <Button disabled={form.formState.isSubmitting} type="submit" className="w-full">
           <LoadingSwap isLoading={form.formState.isSubmitting}>
             {attribute ? 'Update Attribute' : 'Add Attribute'}
           </LoadingSwap>

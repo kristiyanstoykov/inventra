@@ -202,6 +202,8 @@ export const StockTable = mysqlTable('stock', {
 });
 
 /** ========== Orders ========== **/
+export const orderStatuses = ['cancelled', 'failed', 'pending', 'completed'] as const;
+export type OrderStatus = (typeof orderStatuses)[number];
 export const OrderTable = mysqlTable('orders', {
   id: int('id').autoincrement().primaryKey().notNull(),
   warehouseId: int('warehouse_id')
@@ -212,7 +214,7 @@ export const OrderTable = mysqlTable('orders', {
     .references(() => UserTable.id)
     .notNull()
     .default(0),
-  status: varchar('status', { length: 50 }).notNull().default('pending'),
+  status: mysqlEnum('status', orderStatuses).notNull().default('pending'),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: datetime('updated_at')
     .default(sql`CURRENT_TIMESTAMP`)

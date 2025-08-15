@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { paymentTypes } from '@/db/drizzle/schema';
+import { orderStatuses, paymentTypes } from '@/db/drizzle/schema';
 import { userSchema } from './users';
 
 export const OrderItemSchema = z.object({
@@ -22,6 +22,7 @@ export const OrderSchema = z.object({
   paymentType: PaymentTypeSchema,
   // clientId: z.number().int(),
   clientId: z.union([z.coerce.number().int().positive(), userSchema]),
+  status: z.enum(orderStatuses).default('pending'),
 });
 
 export type OrderType = z.infer<typeof OrderSchema>;

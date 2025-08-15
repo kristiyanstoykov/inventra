@@ -339,7 +339,7 @@ export async function getAllOrdersWithItems(
 
 export async function createOrder(data: z.infer<typeof OrderSchema>) {
   try {
-    const { items, clientId, paymentType, date } = data;
+    const { items, clientId, paymentType, date, status } = data;
     const dt = date ? new Date(date) : new Date();
 
     if (!(dt instanceof Date) || Number.isNaN(dt.getTime())) {
@@ -447,6 +447,7 @@ export async function createOrder(data: z.infer<typeof OrderSchema>) {
           warehouseId: 1, // TODO: make dynamic when warehouse logic is implemented
           paymentType: paymentType.id,
           createdAt: sql`STR_TO_DATE(${formatted}, '%Y-%m-%d %H:%i:%s')`,
+          status: status ?? 'pending',
         })
         .$returningId();
 
@@ -557,7 +558,7 @@ export async function createOrder(data: z.infer<typeof OrderSchema>) {
 
 export async function updateOrder(orderId: number, data: OrderData) {
   // Note: OrderSchema allows a union for clientId; here we accept only a number
-  const { items: newItemsInput, clientId, paymentType, date } = data;
+  const { items: newItemsInput, clientId, paymentType, date, status } = data;
 
   // Normalize the date (we use NOW() for created/updatedAt, but if you want to store the date field—ensure it is valid)
   const dt = date ? new Date(date) : new Date();
@@ -729,6 +730,7 @@ export async function updateOrder(orderId: number, data: OrderData) {
     const headerUpdate: Partial<typeof OrderTable.$inferInsert> = {
       paymentType: paymentType.id,
       updatedAt: new Date(),
+      status: status ?? 'pending',
     };
 
     if (typeof clientId === 'number' && Number.isFinite(clientId)) {

@@ -1,13 +1,13 @@
-import {
-  ProductsTable,
-  SkeletonProductsTable,
-} from '@/components/products/table';
+import { ProductsTable, SkeletonProductsTable } from '@/components/products/table';
 import { Heading } from '@/components/ui/heading';
 import { Suspense } from 'react';
 import { getPaginatedProducts } from '@/db/drizzle/queries/products';
 import { AppError } from '@/lib/appError';
 import { DataTableSearchClient } from '@/components/dataTable/DataTableSearchClient';
 import { Metadata } from 'next';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { PlusIcon } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'All Products',
@@ -20,11 +20,7 @@ type SearchParams = Promise<{
   perPage?: string;
 }>;
 
-export default async function ProductsPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
+export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <Suspense
       fallback={
@@ -50,13 +46,7 @@ async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
     (params.sort?.split('.') as [string, 'asc' | 'desc']) ?? [];
   const search = params.search ?? '';
 
-  const result = await getPaginatedProducts(
-    pageNum,
-    perPage,
-    sortKey,
-    sortDir,
-    search
-  );
+  const result = await getPaginatedProducts(pageNum, perPage, sortKey, sortDir, search);
   if (result instanceof AppError) {
     return (
       <div className="p-4">
@@ -72,9 +62,16 @@ async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <div className="m-4">
-      <Heading size={'h3'} as={'h1'} className="mb-4">
-        Products
-      </Heading>
+      <div className="flex">
+        <Heading size={'h3'} as={'h1'} className="mb-4 mr-4">
+          Products
+        </Heading>
+        <Link href="products/new">
+          <Button variant={'addition'}>
+            <PlusIcon /> Add Product
+          </Button>
+        </Link>
+      </div>
       <DataTableSearchClient />
       <Suspense fallback={<SkeletonProductsTable />}>
         <ProductsTable

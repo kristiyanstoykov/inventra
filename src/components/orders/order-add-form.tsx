@@ -24,12 +24,10 @@ import { cn } from '@/lib/utils';
 import { InitialItem, SelectProductsField } from './product-search-field';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { InferSelectModel } from 'drizzle-orm';
-import { PaymentTypesTable } from '@/db/drizzle/schema';
+import { orderStatuses, PaymentTypesTable } from '@/db/drizzle/schema';
 import { createOrderAction, updateOrderAction } from '@/lib/actions/orders';
 import { AppError } from '@/lib/appError';
 import { ClientComboBox } from './client-search-field';
-import { SignInForm } from '@/auth/nextjs/components/SignInForm';
-import { SignUpForm } from '@/auth/nextjs/components/SignUpForm';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '../ui/card';
 import { UserFormFields } from '../users/user-form-fields';
@@ -41,7 +39,7 @@ export function OrderForm({
   initialItems,
   roles,
 }: {
-  order: Pick<OrderType, 'id' | 'items' | 'date' | 'clientId'>;
+  order: Pick<OrderType, 'id' | 'items' | 'date' | 'clientId' | 'status'>;
   paymentTypesList: InferSelectModel<typeof PaymentTypesTable>[];
   initialClient?: { id: number; name: string } | null;
   initialItems?: InitialItem[] | null;
@@ -63,7 +61,7 @@ export function OrderForm({
 
   async function onSubmit(data: z.infer<typeof OrderSchema>) {
     try {
-      const action = order ? updateOrderAction.bind(null, order.id) : createOrderAction;
+      const action = order?.id ? updateOrderAction.bind(null, order.id) : createOrderAction;
 
       const result = await action(data);
 
@@ -76,10 +74,14 @@ export function OrderForm({
       }
 
       toast.success(result.message);
-    } catch (err: any) {
-      toast.error('There was an error adding the order: ' + (err.message || 'Unexpected error.'), {
-        dismissible: true,
-      });
+      router.push(`/admin/orders/`);
+    } catch (err: unknown) {
+      toast.error(
+        'There was an error adding the order: ' + (err as Error).message || 'Unexpected error.',
+        {
+          dismissible: true,
+        }
+      );
     }
   }
 
@@ -164,6 +166,36 @@ export function OrderForm({
                     );
                   }}
                 />
+
+                <FormField
+                  name="status"
+                  control={form.control}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <FormControl>
+                        <Select
+                          value={(field.value as string) ?? order?.status ?? orderStatuses[2]}
+                          onValueChange={(val) =>
+                            field.onChange(val as (typeof orderStatuses)[number])
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {orderStatuses.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status.charAt(0).toUpperCase() + status.slice(1)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </CardContent>
           </Card>
@@ -197,7 +229,7 @@ export function OrderForm({
                       );
                     } else {
                       // existing
-                      form.setValue('clientId', undefined, {
+                      form.setValue('clientId', 0, {
                         shouldDirty: true,
                         shouldValidate: false,
                       });
