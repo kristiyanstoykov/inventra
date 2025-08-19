@@ -9,6 +9,7 @@ import {
   varchar,
   boolean,
   decimal,
+  longtext,
 } from 'drizzle-orm/mysql-core';
 
 /** ========== Enums ========== **/
@@ -263,6 +264,13 @@ export const InviteTable = mysqlTable('invites', {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
+/** ========== Options ========== **/
+export const OptionsTable = mysqlTable('options', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  name: varchar('name', { length: 255 }).notNull().unique(),
+  value: longtext(),
+});
+
 export const schema = {
   users: UserTable,
   sessions: SessionTable,
@@ -282,4 +290,5 @@ export const schema = {
   orderItems: OrderItemTable,
   invites: InviteTable,
   paymentTypes: PaymentTypesTable,
+  options: OptionsTable,
 };

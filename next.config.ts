@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['mysql2'],
+  experimental: { serverComponentsExternalPackages: ['pdfkit', 'sharp'] },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Exclude server-side dependencies from client bundle

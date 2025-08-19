@@ -127,6 +127,20 @@
       "when": 1755181094128,
       "tag": "0017_nifty_prowler",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1755524940648,
+      "tag": "0018_wakeful_sumo",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1755525898897,
+      "tag": "0019_giant_zarda",
+      "breakpoints": true
     }
   ]
 }

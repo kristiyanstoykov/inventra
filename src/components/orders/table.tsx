@@ -12,9 +12,10 @@ import { InferSelectModel } from 'drizzle-orm';
 import {
   Banknote,
   ChevronsUpDown,
-  Clipboard,
   CreditCard,
+  FileBadge2,
   PencilIcon,
+  ReceiptEuro,
   TrashIcon,
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -23,6 +24,10 @@ import { OrderBadge } from '../ui/badge-order-status';
 import { empty } from '@/lib/empty';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { deleteOrderAction } from '@/lib/actions/orders';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { generateInvoiceAction } from '@/lib/actions/invoices';
+import { useInvoiceDownload } from '@/hooks/useInvoiceDownload';
+import { LoadingSwap } from '../LoadingSwap';
 
 type Orders = InferSelectModel<typeof OrderTable> & {
   clientFirstName: string;
@@ -266,6 +271,7 @@ export function OrdersTable({
 function ActionCell({ id }: { id: number }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { handleInvoice, downloadingId } = useInvoiceDownload();
 
   async function handleDelete(id: number) {
     const result = await deleteOrderAction(id);
@@ -295,20 +301,48 @@ function ActionCell({ id }: { id: number }) {
       >
         <TrashIcon className="size-4" />
       </ActionButton>
-      <ActionButton
-        variant={'secondary'}
-        className="border border-emerald-500 bg-emerald-100 dark:bg-emerald-700"
-        action={async () => {
-          await new Promise((res) => setTimeout(res, 1000));
-          console.log(`Order #${id}`);
-          return {
-            error: true,
-            message: 'Unimplemented action',
-          };
-        }}
-      >
-        <Clipboard className="size-4" />
-      </ActionButton>
+
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ActionButton
+              variant={'secondary'}
+              className="border border-emerald-500 bg-emerald-100 dark:bg-emerald-700 dark:hover:bg-emerald-800"
+              action={async () => {
+                await new Promise((res) => setTimeout(res, 1000));
+                console.log(`Order #${id}`);
+                return {
+                  error: true,
+                  message: 'Unimplemented warranty action',
+                };
+              }}
+            >
+              <FileBadge2 className="size-4" />
+            </ActionButton>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-sm">
+            Warranty card
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={() => handleInvoice(id)}
+              disabled={downloadingId === id}
+              variant={'secondary'}
+              className="border border-emerald-500 bg-emerald-100 dark:bg-emerald-700 dark:hover:bg-emerald-800"
+            >
+              <LoadingSwap isLoading={downloadingId === id}>
+                <ReceiptEuro className="size-4" />
+              </LoadingSwap>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-sm">
+            Invoice
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }

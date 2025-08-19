@@ -8,31 +8,12 @@ import {
   Folder,
   ListCheck,
   Tag,
+  Settings,
 } from 'lucide-react';
 import { AppSidebar } from '@/components/sidebar/AppSidebar';
 import { SidebarNavMenuGroup } from '@/components/sidebar/SidebarNavMenuGroups';
 import { SidebarUserButton } from '@/components/sidebar/SidebarUserButton';
 import Header from '@/components/Header';
-
-// const menuItems = [
-//   { label: 'Dashboard', href: '/admin' },
-//   { label: 'Warehouses', href: '/admin/warehouses' },
-//   {
-//     label: 'Products',
-//     href: '#',
-//     subItems: [
-//       { label: 'All Products', href: '/admin/products' },
-//       { label: 'New Product', href: '/admin/products/new' },
-//       { label: 'Categories', href: '/admin/products/categories' },
-//       { label: 'Attributes', href: '/admin/products/attributes' },
-//     ],
-//   },
-//   { label: 'Stock', href: '/admin/stock' },
-//   { label: 'Orders', href: '/admin/orders' },
-//   { label: 'Invites', href: '/admin/invites' },
-//   { label: 'Users', href: '/admin/users' },
-//   // { label: 'Settings', href: '/admin/settings' }, // maybe later
-// ];
 
 export default function AdminLayout({
   children,
@@ -91,6 +72,11 @@ export default function AdminLayout({
                 href: '/admin/users',
                 icon: <User />,
                 label: 'Clients',
+              },
+              {
+                href: '/admin/settings',
+                icon: <Settings />,
+                label: 'Settings',
               },
             ]}
           />
