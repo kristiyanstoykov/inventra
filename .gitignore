@@ -11,6 +11,9 @@
 */*/*.log
 [project]/logs/*
 
+# uploads
+uploads
+
 # dependencies
 /node_modules
 /.pnp
