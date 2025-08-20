@@ -1,15 +1,12 @@
-// lib/pdf/invoice.ts
 import PDFDocument from 'pdfkit';
 import path from 'node:path';
 import fs from 'node:fs';
 import { loadImageForPdf } from './img';
 
-// path to font with Cyrillic support (still kept in case of legacy data)
 const FONT_REGULAR = path.join(process.cwd(), 'assets/fonts/DejaVuSans.ttf');
 const FONT_BOLD = path.join(process.cwd(), 'assets/fonts/DejaVuSans-Bold.ttf');
-const NEW_LINE_ADDRESS_THRESHOLD_LENGTH = 20;
-const NEW_LINE_PRODUCT_THRESHOLD_LENGTH = 55;
 
+// ---------- Types (unchanged) ----------
 type OrderItem = {
   id: number;
   name: string;
@@ -70,7 +67,6 @@ export const L = {
   invoice: 'INVOICE',
   no: 'No:',
   date: 'Date:',
-
   supplier: 'Supplier',
   customer: 'Customer',
   uic: 'UIC/BULSTAT',
@@ -79,260 +75,96 @@ export const L = {
   rep: 'Representative',
   phone: 'Tel.',
   email: 'Email',
-
   thNo: 'No',
   thDesc: 'Description',
   thQty: 'Qty',
   thUnit: 'Unit Price',
   thAmount: 'Amount',
-
-  subtotalExVat: 'Subtotal (excl. VAT):',
+  subtotalExVat: 'Данъчна основа (20.00 %):',
   vat20: 'VAT 20%:',
   totalInclVat: 'Total (incl. VAT):',
-  total: 'Total:',
+  total: 'Сума за плащане:',
   notVatRegistered: 'The supplier is not VAT registered.',
-
   paymentMethod: 'Payment Method:',
   notes: 'Notes:',
   sigSupplier: 'Signature (Supplier)',
   sigCustomer: 'Signature (Customer)',
+  legalText:
+    'Съгласно чл.6, ал 1 от Закона за счетоводството, чл.114 от ЗДДС и чл.78 от ППЗДДС печатът и подписът не са задължителни реквизити на фактурата',
 };
 
+// ---------- Utils ----------
 function ensureFontFile(p: string) {
   if (!fs.existsSync(p)) {
     throw new Error(`Missing font file at ${p}. Add DejaVuSans.ttf (+ Bold) under assets/fonts/.`);
   }
 }
-
 function money(n: number) {
   return n.toFixed(2);
 }
 
-export async function buildInvoicePdf(order: Order, company: CompanyOptions, invoiceNo: string) {
-  if (!company.logo) throw new Error('Missing company logo. Add a logo in settings.');
-  if (!company.companyName || !company.uic)
-    throw new Error('Missing required supplier data (name/UIC).');
-
-  ensureFontFile(FONT_REGULAR);
-  ensureFontFile(FONT_BOLD);
-
-  const doc = new PDFDocument({ size: 'A4', margin: 36 });
-  const chunks: Buffer[] = [];
-  doc.on('data', (c) => chunks.push(c));
-
-  doc.registerFont('R', FONT_REGULAR);
-  doc.registerFont('B', FONT_BOLD);
-  doc.font('R');
-
-  // page metrics
-  const leftX = doc.page.margins.left;
-  const rightX = doc.page.width - doc.page.margins.right;
-  const contentW = rightX - leftX;
-  const headerTop = 36;
-
-  // header (logo + title / number / date)
-  try {
-    const logoBuf = await loadImageForPdf(company.logo);
-    doc.image(logoBuf, leftX, headerTop, { fit: [120, 60] });
-  } catch {}
-
-  doc.font('B').fontSize(18).text(L.invoice, leftX, headerTop, { width: contentW, align: 'right' });
-  doc.font('R').fontSize(10);
-  const issuedAt = new Date(order.createdAt || new Date());
-  doc.text(`${L.no} ${invoiceNo}`, leftX, headerTop + 22, { width: contentW, align: 'right' });
-  doc.text(`${L.date} ${issuedAt.toLocaleDateString('en-GB')}`, leftX, headerTop + 36, {
-    width: contentW,
-    align: 'right',
-  });
-
-  const afterLogoY = headerTop + 60 + 12;
-
-  // supplier / customer columns
-  const gap = 24;
-  const colW = (contentW - gap) / 2;
-  const supX = leftX;
-  const cusX = leftX + colW + gap;
-
-  const supplierLines = [
-    company.companyName,
-    `${L.uic}: ${company.uic}`,
-    company.vatNumber ? `${L.vatNo}: ${company.vatNumber}` : '',
-    company.address ? `${L.address}: ${company.address}` : '',
-    [company.postalCode, company.city, company.country].filter(Boolean).join(' '),
-    company.representative ? `${L.rep}: ${company.representative}` : '',
-    company.phone ? `${L.phone}: ${company.phone}` : '',
-    company.email ? `${L.email}: ${company.email}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
-
-  const buyerName =
-    order.clientCompany && order.clientCompany.trim() !== ''
-      ? order.clientCompany
-      : order.clientNames ||
-        `${order.clientFirstName ?? ''} ${order.clientLastName ?? ''}`.trim() ||
-        '—';
-
-  doc.font('B').fontSize(12).text(L.supplier, supX, afterLogoY, { width: colW });
-  doc.font('R').fontSize(10);
-  const supplierH = doc.heightOfString(supplierLines, { width: colW });
-  doc.text(supplierLines, supX, afterLogoY + 16, { width: colW });
-
-  doc.font('B').fontSize(12).text(L.customer, cusX, afterLogoY, { width: colW });
-  doc.font('R').fontSize(10);
-  const buyerH = doc.heightOfString(buyerName, { width: colW });
-  doc.text(buyerName, cusX, afterLogoY + 16, { width: colW });
-
-  let y = Math.max(afterLogoY + 16 + supplierH, afterLogoY + 16 + buyerH) + 18;
-
-  // table columns (bounded)
-  const colGap = 8;
-  const idxW = 24,
-    qtyW = 40,
-    unitW = 70,
-    amtW = 90;
-  const descW = contentW - (idxW + qtyW + unitW + amtW + colGap * 4);
-
-  const col = {
-    idx: leftX,
-    desc: leftX + idxW + colGap,
-    qty: leftX + idxW + colGap + descW + colGap,
-    unit: leftX + idxW + colGap + descW + colGap + qtyW + colGap,
-    amt: leftX + idxW + colGap + descW + colGap + qtyW + colGap + unitW + colGap,
-  };
-
-  // table header
-  doc.font('B').fontSize(10);
-  doc.text(L.thNo, col.idx, y, { width: idxW });
-  doc.text(L.thDesc, col.desc, y, { width: descW });
-  doc.text(L.thQty, col.qty, y, { width: qtyW, align: 'right' });
-  doc.text(L.thUnit, col.unit, y, { width: unitW, align: 'right' });
-  doc.text(L.thAmount, col.amt, y, { width: amtW, align: 'right' });
-  doc
-    .moveTo(leftX, y + 14)
-    .lineTo(rightX, y + 14)
-    .stroke();
-  y += 22;
-
-  // rows with wrapping + dynamic height
-  const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-  doc.font('R').fontSize(10);
-  let totalGross = 0;
-
-  function renderTableHeader() {
-    doc.font('B').fontSize(10);
-    doc.text(L.thNo, col.idx, y, { width: idxW });
-    doc.text(L.thDesc, col.desc, y, { width: descW });
-    doc.text(L.thQty, col.qty, y, { width: qtyW, align: 'right' });
-    doc.text(L.thUnit, col.unit, y, { width: unitW, align: 'right' });
-    doc.text(L.thAmount, col.amt, y, { width: amtW, align: 'right' });
-    doc
-      .moveTo(leftX, y + 14)
-      .lineTo(rightX, y + 14)
-      .stroke();
-    y += 22;
-    doc.font('R').fontSize(10);
-  }
-
-  const bottomLimit = doc.page.height - doc.page.margins.bottom - 160;
-
-  items.forEach((it: OrderItem, i: number) => {
-    const q = Number(it.quantity) || 0;
-    const unit = Number(it.price) || 0;
-    const line = q * unit;
-    totalGross += line;
-
-    const descH = doc.heightOfString(String(it.name), { width: descW });
-    const rowH = Math.max(16, descH);
-
-    if (y + rowH > bottomLimit) {
-      doc.addPage();
-      y = doc.page.margins.top;
-      renderTableHeader();
-    }
-
-    doc.text(String(i + 1), col.idx, y, { width: idxW });
-    doc.text(String(it.name), col.desc, y, { width: descW });
-    doc.text(String(q), col.qty, y, { width: qtyW, align: 'right' });
-    doc.text(money(unit), col.unit, y, { width: unitW, align: 'right' });
-    doc.text(money(line), col.amt, y, { width: amtW, align: 'right' });
-
-    y += rowH;
-  });
-
-  doc
-    .moveTo(leftX, y + 4)
-    .lineTo(rightX, y + 4)
-    .stroke();
-  y += 12;
-
-  // totals
-  const isVat = !!(company.vatNumber && company.vatNumber.trim());
-  const labelW = 180,
-    valueW = 90;
-  const sumBoxW = labelW + 10 + valueW;
-  const sumX = rightX - sumBoxW;
-
-  if (isVat) {
-    const net = totalGross / 1.2;
-    const vat = totalGross - net;
-    doc.text(L.subtotalExVat, sumX, y, { width: labelW, align: 'right' });
-    doc.text(money(net), sumX + labelW + 10, y, { width: valueW, align: 'right' });
-    y += 16;
-    doc.text(L.vat20, sumX, y, { width: labelW, align: 'right' });
-    doc.text(money(vat), sumX + labelW + 10, y, { width: valueW, align: 'right' });
-    y += 16;
-    doc.font('B');
-    doc.text(L.totalInclVat, sumX, y, { width: labelW, align: 'right' });
-    doc.text(money(totalGross), sumX + labelW + 10, y, { width: valueW, align: 'right' });
-    doc.font('R');
-  } else {
-    doc.text(L.notVatRegistered, sumX - 40, y, { width: sumBoxW + 40, align: 'right' });
-    y += 18;
-    doc.font('B');
-    doc.text(L.total, sumX, y, { width: labelW, align: 'right' });
-    doc.text(money(totalGross), sumX + labelW + 10, y, { width: valueW, align: 'right' });
-    doc.font('R');
-  }
-  y += 26;
-
-  // payment + notes
-  const paymentMap = { cash: 'Cash', card: 'Card', bank: 'Bank transfer' } as const;
-  doc.text(
-    `${L.paymentMethod} ${
-      paymentMap[order.paymentType as keyof typeof paymentMap] ?? order.paymentType ?? '—'
-    }`,
-    leftX,
-    y,
-    { width: contentW }
-  );
-  y += 16;
-  if (company.notes) {
-    doc.font('B').text(L.notes, leftX, y, { width: 60 });
-    doc.font('R').text(company.notes, leftX + 60, y, { width: contentW - 60 });
-    y += 20;
-  }
-
-  // signatures
-  const sigY = doc.page.height - doc.page.margins.bottom - 60;
-  doc
-    .moveTo(leftX, sigY)
-    .lineTo(leftX + 264, sigY)
-    .stroke();
-  doc.text(L.sigSupplier, leftX, sigY + 4, { width: 264 });
-
-  doc
-    .moveTo(rightX - 264, sigY)
-    .lineTo(rightX, sigY)
-    .stroke();
-  doc.text(L.sigCustomer, rightX - 264, sigY + 4, { width: 264 });
-
-  doc.end();
-  await new Promise<void>((r) => doc.on('end', () => r()));
-  return Buffer.concat(chunks);
+function moneyBGN(n: number) {
+  return n.toFixed(2) + ' BGN';
 }
 
-// NEW: Streaming approach - saves directly to file and returns URL
+function generateHr(doc: InstanceType<typeof PDFDocument>, y: number) {
+  doc.strokeColor('#aaaaaa').lineWidth(1).moveTo(50, y).lineTo(560, y).stroke();
+}
+
+// Centralized layout numbers
+const layout = {
+  page: { marginLeft: 36, marginRight: 36, marginTop: 36, marginBottom: 36 },
+  columns: {
+    table: {
+      x: 50,
+      // widths for № | Продукт | Ед. цена | Количество | Сума
+      wNo: 24,
+      wDesc: 250, // smaller to leave room for numeric columns
+      wUnit: 70,
+      wQty: 65,
+      wAmount: 70,
+      rowGap: 6,
+      headerGap: 8,
+    },
+  },
+  y: {
+    headerLogoY: 45,
+    headerRightY: 50,
+    customerSupplierTop: 170,
+    tableTop: 300,
+    footerTopMin: 600,
+  },
+  sign: {
+    blockHeight: 70, // height of a signature block
+    leftX: 50,
+    rightX: 330,
+    width: 220,
+  },
+};
+
+// Measure helper: точно колко високо ще е дадено парче текст
+function height(
+  doc: InstanceType<typeof PDFDocument>,
+  text: string,
+  opts: PDFKit.Mixins.TextOptions
+) {
+  return doc.heightOfString(text ?? '—', opts);
+}
+
+// Page-break helper
+function ensureRoom(
+  doc: InstanceType<typeof PDFDocument>,
+  nextBlockHeight: number,
+  reserveBottom = 120 // остави място за тотали/футър
+) {
+  const pageHeight = doc.page.height;
+  const bottomLimit = pageHeight - doc.page.margins.bottom - reserveBottom;
+  if (doc.y + nextBlockHeight > bottomLimit) {
+    doc.addPage();
+  }
+}
+
+// ---------- Public API ----------
 export async function buildInvoicePdfStream(
   order: Order,
   company: CompanyOptions,
@@ -347,19 +179,14 @@ export async function buildInvoicePdfStream(
   ensureFontFile(FONT_REGULAR);
   ensureFontFile(FONT_BOLD);
 
-  // Setup file paths (same logic as saveBufferAsLocalFile)
   const uploadRoot = path.join(process.cwd(), 'uploads');
   const dir = path.join(uploadRoot, subdir);
   const filename = `${invoiceNo}.pdf`;
   const fsPath = path.join(dir, filename);
   const url = `/media/${subdir}/${filename}`;
-
-  // Ensure directory exists
   await fs.promises.mkdir(dir, { recursive: true });
 
   const doc = new PDFDocument({ size: 'A4', margin: 36 });
-
-  // Stream directly to file
   const stream = fs.createWriteStream(fsPath, { mode: 0o644 });
   doc.pipe(stream);
 
@@ -367,22 +194,21 @@ export async function buildInvoicePdfStream(
   doc.registerFont('B', FONT_BOLD);
   doc.font('R');
 
-  // Generate header with company logo and invoice info
-  await generateInvoiceHeader(doc, company, invoiceNo);
+  const orderIdStr = order.id
+    .toString()
+    .padStart(invoiceNo.length - order.id.toString().length, '0');
 
-  // Generate supplier and customer information
-  generateSupplierCustomerInfo(doc, company, order, client);
+  await generateInvoiceHeader(doc, company, invoiceNo, orderIdStr);
+  const afterHeaderY = generateSupplierCustomerInfo(doc, company, order, client);
 
-  // Generate invoice table
-  generateInvoiceTable(doc, order);
+  const tableStartY = Math.max(layout.y.tableTop, afterHeaderY + 16);
+  doc.y = tableStartY;
 
-  // Generate footer
-  generateInvoiceFooter(doc, company, order);
+  const total = generateInvoiceTable(doc, order);
+  generateInvoiceFooter(doc, company, order, client);
 
-  // End the document
   doc.end();
 
-  // Wait for the stream to finish
   await new Promise<void>((resolve, reject) => {
     stream.on('finish', resolve);
     stream.on('error', reject);
@@ -391,30 +217,36 @@ export async function buildInvoicePdfStream(
   return { url, fsPath };
 }
 
+// ---------- Sections ----------
 async function generateInvoiceHeader(
   doc: InstanceType<typeof PDFDocument>,
   company: CompanyOptions,
-  invoiceNo: string
+  invoiceNo: string,
+  orderNo: string
 ) {
-  // Header design similar to createPdf.ts
+  // Logo
   try {
     const logoBuf = await loadImageForPdf(company.logo);
-    doc.image(logoBuf, 50, 45, { width: 50 });
+    doc.image(logoBuf, 50, layout.y.headerLogoY, { width: 128 });
   } catch {
-    // Logo loading failed, continue without logo
+    // ignore
   }
 
+  // Right title
   doc
     .fillColor('#444444')
     .fontSize(8)
     .text('ОРИГИНАЛ', { align: 'center' })
     .fontSize(20)
     .font('B')
-    .text('Фактура', 200, 50, { align: 'right' })
+    .text('Фактура', 200, layout.y.headerRightY, { align: 'right' })
+    .text('Поръчка', 200, layout.y.headerRightY + 50, { align: 'right' })
     .fontSize(12)
     .font('R')
-    .text(invoiceNo, 200, 80, { align: 'right' })
-    .moveDown();
+    .text(`№ ${invoiceNo}`, 200, layout.y.headerRightY + 30, { align: 'right' })
+    .text(`№ ${orderNo}`, 200, layout.y.headerRightY + 80, { align: 'right' });
+
+  doc.moveDown();
 }
 
 function generateSupplierCustomerInfo(
@@ -422,214 +254,345 @@ function generateSupplierCustomerInfo(
   company: CompanyOptions,
   order: Order,
   client: UserType
-) {
-  const customerInformationTop = 200;
-  doc.fontSize(10).font('B').text(`Получател:`, 50, 170).font('R');
+): number {
+  const labelOpts: PDFKit.Mixins.TextOptions = { width: 115 };
+  const valueOpts: PDFKit.Mixins.TextOptions = { width: 150 };
 
-  generateHr(doc, 185);
+  const top = layout.y.customerSupplierTop;
+  generateHr(doc, top - 5);
 
-  // Left side - Customer details
+  // Заглавия
+  doc.fontSize(10).font('B').text('Получател:', 50, top).text('Доставчик:', 300, top);
+  doc.fontSize(8).font('R');
+
+  // Ляво — клиент
+  let yL = top + 18;
+  const leftLabelX = 50;
+  const leftValueX = 150;
+
   if (client.isCompany) {
-    const addressY = customerInformationTop + 30;
-    const rawAddress = client.address || '—';
+    // Company Name
+    doc.text('Име на фирмата:', leftLabelX, yL, labelOpts);
+    const v1 = client.companyName || '—';
+    const h1 = height(doc, v1, { ...valueOpts });
+    doc.font('B').text(v1, leftValueX, yL, { ...valueOpts });
+    doc.font('R');
+    yL += Math.max(h1, 12) + 2;
 
-    doc
-      .fontSize(8)
-      .text(`Име на фирмата:`, 50, customerInformationTop)
-      .font('B')
-      .text(client.companyName || '—', 150, customerInformationTop, { width: 115 })
-      .font('R')
-      .text(`ЕИК:`, 50, customerInformationTop + 15)
-      .font('B')
-      .text(client.bulstat ? client.bulstat : '—', 150, customerInformationTop + 15, { width: 115 })
-      .font('R')
-      .text(`Адрес:`, 50, addressY)
-      .font('B')
-      .text(rawAddress, 150, addressY, { width: 115 });
+    // UIC
+    doc.text('ЕИК:', leftLabelX, yL, labelOpts);
+    const v2 = client.bulstat || '—';
+    const h2 = height(doc, v2, valueOpts);
+    doc.font('B').text(v2, leftValueX, yL, valueOpts);
+    doc.font('R');
+    yL += Math.max(h2, 12) + 2;
+
+    // Address
+    doc.text('Адрес:', leftLabelX, yL, labelOpts);
+    const v3 = client.address || '—';
+    const h3 = height(doc, v3, valueOpts);
+    doc.font('B').text(v3, leftValueX, yL, valueOpts);
+    doc.font('R');
+    yL += Math.max(h3, 12) + 2;
   } else {
-    doc
-      .fontSize(8)
-      .text(`Име:`, 50, customerInformationTop)
-      .font('B')
-      .text(`${client.firstName || '—'} ${client.lastName || '—'}`, 150, customerInformationTop, {
-        width: 115,
-      })
-      .font('R')
-      .text(`Имейл:`, 50, customerInformationTop + 15)
-      .font('B')
-      .text(client.email, 150, customerInformationTop + 15, { width: 115 })
-      .font('R')
-      .text(`Тел.:`, 50, customerInformationTop + 30)
-      .font('B')
-      .text(client.phone || '—', 150, customerInformationTop + 30, { width: 115 })
-      .font('R');
+    // Name
+    doc.text('Име:', leftLabelX, yL, labelOpts);
+    const v1 = `${client.firstName || '—'} ${client.lastName || '—'}`.trim();
+    const h1 = height(doc, v1, valueOpts);
+    doc.font('B').text(v1, leftValueX, yL, valueOpts);
+    doc.font('R');
+    yL += Math.max(h1, 12) + 2;
+
+    // Email
+    doc.text('Имейл:', leftLabelX, yL, labelOpts);
+    const v2 = client.email || '—';
+    const h2 = height(doc, v2, valueOpts);
+    doc.font('B').text(v2, leftValueX, yL, valueOpts);
+    doc.font('R');
+    yL += Math.max(h2, 12) + 2;
+
+    // Phone
+    doc.text('Тел.:', leftLabelX, yL, labelOpts);
+    const v3 = client.phone || '—';
+    const h3 = height(doc, v3, valueOpts);
+    doc.font('B').text(v3, leftValueX, yL, valueOpts);
+    doc.font('R');
+    yL += Math.max(h3, 12) + 2;
   }
 
-  // Right side - Supplier information
-  const addressExtra = (company.address?.length ?? 0) > NEW_LINE_ADDRESS_THRESHOLD_LENGTH ? 8.5 : 0;
-  let y = customerInformationTop;
+  // Дясно — доставчик
+  let yR = top + 18;
+  const rightLabelX = 300;
+  const rightValueX = 400;
 
-  // Section heading
-  doc.fontSize(10).font('B').text(`Доставчик:`, 300, 170);
+  const writeField = (label: string, value: string | null | undefined) => {
+    doc.font('R').text(label, rightLabelX, yR, labelOpts);
+    const v = value?.trim() || '—';
+    const h = height(doc, v, valueOpts);
+    doc.font('B').text(v, rightValueX, yR, valueOpts).font('R');
+    yR += Math.max(h, 12) + 2;
+  };
 
-  // Company name
-  doc.fontSize(8).font('R').text(`Име на фирмата:`, 300, y);
-  doc.font('B').text(company.companyName || '—', 400, y, { width: 115 });
-  y += 15;
+  writeField('Име на фирмата:', company.companyName);
+  writeField('ЕИК:', company.uic);
+  if (company.vatNumber?.trim()) writeField('ДДС №:', company.vatNumber);
+  writeField('Адрес:', company.address);
+  writeField('МОЛ:', company.representative);
 
-  // UIC
-  doc.font('R').text(`ЕИК:`, 300, y);
-  doc.font('B').text(company.uic ? company.uic : '—', 400, y, { width: 115 });
-  y += 15;
-
-  // Conditional VAT number
-  if (company.vatNumber && company.vatNumber.trim() !== '') {
-    doc.font('R').text(`ДДС №:`, 300, y);
-    doc.font('B').text(company.vatNumber.trim(), 400, y, { width: 115 });
-    y += 15;
-  }
-
-  // Address
-  doc.font('R').text(`Адрес:`, 300, y);
-  doc.font('B').text(company.address || '—', 400, y, { width: 115 });
-  y += 15 + addressExtra;
-
-  // Representative
-  doc.font('R').text(`МОЛ:`, 300, y);
-  doc.font('B').text(company.representative || '—', 400, y, { width: 115 });
-  y += 15;
-
-  generateHr(doc, y);
+  const after = Math.max(yL, yR);
+  generateHr(doc, after + 4);
+  return after;
 }
 
 function generateInvoiceTable(doc: InstanceType<typeof PDFDocument>, order: Order): number {
-  let i;
-  const invoiceTableTop = 300;
+  const col = layout.columns.table;
+  const startX = col.x;
 
-  doc.font('B');
-  generateTableRow(doc, invoiceTableTop, '№', 'Продукт', 'Цена', 'Количество', 'Сума', true);
-  generateHr(doc, invoiceTableTop + 20);
-  doc.font('R');
+  // Header
+  doc.font('B').fontSize(9);
+  const headerY = doc.y + 10;
+  generateTableRow(doc, headerY, {
+    headingRow: true,
+    rowNum: '№',
+    desc: 'Продукт',
+    unit: 'Ед. цена',
+    qty: 'Количество',
+    amount: 'Сума',
+  });
+  generateHr(doc, headerY + 16);
+  doc.font('R').fontSize(8);
 
-  // Table rows
-  const items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+  // Rows
+  const items: OrderItem[] =
+    typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+  let y = headerY + 20;
   let totalGross = 0;
 
-  console.log('items', items);
-
-  for (i = 0; i < items.length; i++) {
-    const item = items[i];
-    const q = Number(item.quantity) || 0;
-    const unit = Number(item.price) || 0;
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const q = Number(it.quantity) || 0;
+    const unit = Number(it.price) || 0;
     const line = q * unit;
     totalGross += line;
 
-    const position = invoiceTableTop + (i + 1) * 30;
-
+    // compose description (SN + name)
     const desc =
-      item.sn && String(item.sn).trim() !== ''
-        ? `${String(item.sn).trim()} - ${item.name}`
-        : String(item.name);
+      it.sn && String(it.sn).trim() !== ''
+        ? `${String(it.sn).trim()} - ${it.name}`
+        : String(it.name);
 
-    // Check if we need a new page
-    if (position > doc.page.height - doc.page.margins.bottom - 200) {
-      doc.addPage();
-      const newTop = doc.page.margins.top;
+    // Measure row height as max of all cells (desc can wrap)
+    const rowHeights = measureRowHeights(doc, {
+      rowNum: String(i + 1),
+      desc,
+      unit: money(unit),
+      qty: String(q),
+      amount: money(line),
+    });
+    const rowHeight = Math.max(...rowHeights);
 
-      // Re-render table header on new page
-      doc.font('B');
-      generateTableRow(doc, invoiceTableTop, '№', 'Продукт', 'Цена', 'Количество', 'Сума', true);
-      generateHr(doc, newTop + 20);
-      doc.font('R');
+    // page break if needed (keep room for totals)
+    const needed = rowHeight + layout.columns.table.rowGap;
+    ensureRoom(doc, needed, 160);
 
-      // Adjust position for new page
-      const newPosition = newTop + (i + 1) * 30;
+    // Draw row
+    generateTableRow(doc, y, {
+      rowNum: String(i + 1),
+      desc,
+      unit: money(unit),
+      qty: String(q),
+      amount: money(line),
+    });
 
-      generateTableRow(doc, newPosition, String(i + 1), desc, money(unit), String(q), money(line));
-      generateHr(doc, newPosition + 20);
-    } else {
-      generateTableRow(
-        doc,
-        position,
-        String(i + 1),
-        String(desc),
-        money(unit),
-        String(q),
-        money(line)
-      );
-      generateHr(doc, position + 20);
-    }
+    // Row underline
+    generateHr(doc, y + rowHeight);
+    y += rowHeight + layout.columns.table.rowGap;
+    doc.y = y; // keep doc.y in sync
   }
 
-  const subtotalPosition = invoiceTableTop + (i + 1) * 30;
-  generateTableRow(doc, subtotalPosition, '', '', L.subtotalExVat, '', money(totalGross));
+  const paymentTypeMap: Record<string, string> = {
+    cash: 'в брой',
+    card: 'карта',
+  };
+  let paymentTypeString = order.paymentType
+    ? paymentTypeMap[order.paymentType] || order.paymentType
+    : '—';
+  if (paymentTypeString && paymentTypeString !== '—') {
+    paymentTypeString = paymentTypeString.charAt(0).toUpperCase() + paymentTypeString.slice(1);
+  }
+  // Overwrite so existing totals row uses the transformed value
+  order.paymentType = paymentTypeString;
 
-  const duePosition = subtotalPosition + 25;
-  doc.font('B');
-  generateTableRow(doc, duePosition, '', '', L.total, '', money(totalGross));
-  doc.font('R');
+  // Totals
+  const subtotalY = y + 6;
+  doc.fontSize(8).font('R');
+  drawTotals(doc, subtotalY, [
+    ['Начин на плащане:', paymentTypeString],
+    [L.subtotalExVat, moneyBGN(totalGross - totalGross * 0.2)],
+    ['Начислен ДДС (20.00 %):', moneyBGN(totalGross * 0.2)],
+    [L.total, moneyBGN(totalGross)],
+  ]);
 
+  doc.font('R').fontSize(8);
   return totalGross;
 }
 
-// Table row function similar to createPdf.ts
+function measureRowHeights(
+  doc: InstanceType<typeof PDFDocument>,
+  cells: { rowNum: string; desc: string; unit: string; qty: string; amount: string }
+): number[] {
+  const col = layout.columns.table;
+  const optsBase = { align: 'left' as const };
+  const hNo = height(doc, cells.rowNum, { width: col.wNo, ...optsBase });
+  const hDesc = height(doc, cells.desc, { width: col.wDesc, ...optsBase });
+  const hUnit = height(doc, cells.unit, { width: col.wUnit, align: 'right' as const });
+  const hQty = height(doc, cells.qty, { width: col.wQty, align: 'right' as const });
+  const hAmount = height(doc, cells.amount, { width: col.wAmount, align: 'right' as const });
+  return [hNo, hDesc, hUnit, hQty, hAmount].map((h) => Math.max(h, 12));
+}
+
 function generateTableRow(
   doc: InstanceType<typeof PDFDocument>,
   y: number,
-  rowNum: string,
-  item: string,
-  unitCost: string,
-  quantity: string,
-  lineTotal: string,
-  headingRow: boolean = false
+  data: {
+    headingRow?: boolean;
+    rowNum: string;
+    desc: string;
+    unit: string;
+    qty: string;
+    amount: string;
+  }
 ) {
-  const itemExtra = item.length > NEW_LINE_PRODUCT_THRESHOLD_LENGTH ? 5 : 0;
+  const col = layout.columns.table;
+  const x = col.x;
 
-  doc.fontSize(headingRow ? 10 : 8);
-  doc.text(rowNum, 50, y);
-  doc.text(item, 80, y - itemExtra, { width: 275 });
-  doc.text(unitCost, 280, y, { width: 90, align: 'right' });
-  doc.text(quantity, 370, y, { width: 90, align: 'right' });
-  doc.text(lineTotal, 400, y, { align: 'right' });
+  const optsL: PDFKit.Mixins.TextOptions = { align: 'left' };
+  const optsR: PDFKit.Mixins.TextOptions = { align: 'right' };
+
+  if (data.headingRow) doc.font('B');
+  else doc.font('R');
+  doc.fontSize(data.headingRow ? 9 : 8);
+
+  let cx = x;
+  doc.text(data.rowNum, cx, y, { width: col.wNo, ...optsL });
+  cx += col.wNo + 6;
+  doc.text(data.desc, cx, y, { width: col.wDesc, ...optsL });
+  cx += col.wDesc + 6;
+  doc.text(data.unit, cx, y, { width: col.wUnit, ...optsR });
+  cx += col.wUnit + 6;
+  doc.text(data.qty, cx, y, { width: col.wQty, ...optsR });
+  cx += col.wQty + 6;
+  doc.text(data.amount, cx, y, { width: col.wAmount, ...optsR });
+}
+function drawTotals(
+  doc: InstanceType<typeof PDFDocument>,
+  y: number,
+  rows: Array<[label: string, value: string]>
+) {
+  const rightEdge = 560; // from generateHr
+  const labelWidth = 160;
+  const valueWidth = 80;
+  const gap = 8;
+
+  let cy = y;
+  rows.forEach(([label, value], idx) => {
+    const isTotal = idx === rows.length - 1;
+    doc.font(isTotal ? 'B' : 'R');
+    const labelX = rightEdge - (labelWidth + valueWidth + gap);
+    const valueX = rightEdge - valueWidth;
+
+    const lh = Math.max(
+      height(doc, label, { width: labelWidth, align: 'right' }),
+      height(doc, value, { width: valueWidth, align: 'right' }),
+      12
+    );
+
+    ensureRoom(doc, lh + 6, 80);
+    doc.text(label, labelX, cy, { width: labelWidth, align: 'right' });
+    doc.text(value, valueX, cy, { width: valueWidth, align: 'right' });
+    cy += lh + 1;
+  });
+  doc.font('R');
+}
+
+// helper for 'signature' block
+function drawSignatureBlock(
+  doc: InstanceType<typeof PDFDocument>,
+  x: number,
+  y: number,
+  width: number,
+  heading: string,
+  nameBold: string
+) {
+  const labelWidth = 48; // width reserved for 'Signature:'
+  const lineX = x + labelWidth + 6;
+  const lineY = y + 32;
+  const lineWidth = width - (labelWidth + 16);
+
+  doc.fontSize(10).font('B').text(heading, x, y, { width });
+  doc
+    .font('B')
+    .fontSize(9)
+    .text(nameBold || '—', x, y + 14, { width });
+
+  // 'Signature:' + line
+  doc
+    .font('R')
+    .fontSize(9)
+    .text('Подпис:', x, y + 28, { width: labelWidth });
+  doc
+    .strokeColor('#000000')
+    .lineWidth(1)
+    .moveTo(lineX, lineY + 5)
+    .lineTo(lineX + lineWidth, lineY + 5)
+    .stroke();
 }
 
 function generateInvoiceFooter(
   doc: InstanceType<typeof PDFDocument>,
   company: CompanyOptions,
-  order: Order
+  order: Order,
+  client: UserType
 ) {
-  // Simple footer similar to createPdf.ts
-  const paymentMap = { cash: 'Cash', card: 'Card', bank: 'Bank transfer' } as const;
-  const paymentText = `${L.paymentMethod} ${
-    paymentMap[order.paymentType as keyof typeof paymentMap] ?? order.paymentType ?? '—'
-  }`;
+  // how much space we need until page end: payment/note + two signatures + legal text
+  const reserve =
+    18 /* payment */ +
+    (company.notes ? 28 : 0) +
+    layout.sign.blockHeight +
+    16 /* gap */ +
+    40; /* legal */
 
-  // Payment method info
-  doc.fontSize(10).text(paymentText, 50, 680, {
-    align: 'left',
-    width: 500,
-  });
+  ensureRoom(doc, reserve, 0);
 
-  // Add company notes if available
+  // start of footer
+  const startY = Math.max(doc.y, layout.y.footerTopMin);
+
+  // Notes (if any) – show the actual text
+  let y = doc.y + 6;
   if (company.notes) {
-    doc.text(company.notes, 50, 700, {
-      align: 'left',
-      width: 500,
-    });
+    doc.fontSize(10).text('Бележка:', 50, y, { width: 500, align: 'left' });
+    y = doc.y + 2;
+    doc.fontSize(9).text(company.notes, 50, y, { width: 500, align: 'left' });
+    y = doc.y + 10;
   }
 
-  // Legal disclaimer text at the bottom
-  const legalText =
-    'According to Art. 6, para 1 of the Accountancy Act, Art. 114 of the VAT Act and Art. 78 of the VAT Act, the seal and signature are not mandatory requisites of the invoice.';
-  doc.fontSize(8).text(legalText, 50, 750, {
-    align: 'center',
-    width: 500,
-  });
-}
+  // Signatures – two blocks side by side
+  const leftName = client.isCompany
+    ? client.companyName || `${client.firstName || ''} ${client.lastName || ''}`.trim()
+    : `${client.firstName || ''} ${client.lastName || ''}`.trim();
+  const rightName = company.representative || company.companyName || '—';
 
-// Helper function for horizontal lines (similar to createPdf.ts)
-function generateHr(doc: InstanceType<typeof PDFDocument>, y: number) {
-  doc.strokeColor('#aaaaaa').lineWidth(1).moveTo(50, y).lineTo(560, y).stroke();
+  const signY = Math.max(y, startY + 36);
+  drawSignatureBlock(doc, layout.sign.leftX, signY, layout.sign.width, 'Получател:', leftName);
+  drawSignatureBlock(doc, layout.sign.rightX, signY, layout.sign.width, 'Съставил:', rightName);
+
+  // Legal text at the very bottom
+  const legalY = signY + layout.sign.blockHeight + 6;
+  ensureRoom(doc, 40, 0);
+  doc.fontSize(8).text(L.legalText, 50, legalY, { align: 'center', width: 500 });
+
+  // set current cursor for potential additional elements
+  doc.y = doc.y + 4;
 }
 
 export const runtime = 'nodejs';
