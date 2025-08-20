@@ -231,16 +231,36 @@ export async function deleteUser(id: number) {
 // Get a product by ID
 export async function getUserById(id: number) {
   try {
-    const result = await db.select().from(UserTable).where(eq(UserTable.id, id)).limit(1);
+    const result = await db
+      .select({
+        id: UserTable.id,
+        email: UserTable.email,
+        firstName: UserTable.firstName,
+        lastName: UserTable.lastName,
+        isCompany: UserTable.isCompany,
+        companyName: UserTable.companyName,
+        bulstat: UserTable.bulstat,
+        vatNumber: UserTable.vatNumber,
+        phone: UserTable.phone,
+        address: UserTable.address,
+        createdAt: UserTable.createdAt,
+        updatedAt: UserTable.updatedAt,
+      })
+      .from(UserTable)
+      .where(eq(UserTable.id, id))
+      .limit(1);
 
     if (!result || result.length === 0) {
       return new AppError(`No user found with ID: ${id}`);
     }
-    let user = result[0];
-    const userRole = await getUserRoleIdByUserId(result[0].id);
-    if (!(userRole instanceof AppError)) {
-      user = { ...user, roleId: userRole };
-    }
+
+    const baseUser = result[0];
+    const userRoleId = await getUserRoleIdByUserId(result[0].id);
+
+    const user = {
+      ...baseUser,
+      ...(!(userRoleId instanceof AppError) && { roleId: userRoleId }),
+    };
 
     return user;
   } catch (error) {

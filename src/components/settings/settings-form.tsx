@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { AppError } from '@/lib/appError';
 import { LoadingSwap } from '../LoadingSwap';
 import { ACCEPTED_TYPES, OptionsFormValues, optionsSchema } from '@/lib/schema/options';
@@ -26,6 +27,7 @@ import { empty } from '@/lib/empty';
 import { Loader2 } from 'lucide-react';
 
 export default function CompanySettingsForm({ options }: { options: OptionsFormValues }) {
+  const router = useRouter();
   const [preview, setPreview] = React.useState<string | null>(null);
   const [objectUrl, setObjectUrl] = React.useState<string | null>(null);
 
@@ -78,29 +80,49 @@ export default function CompanySettingsForm({ options }: { options: OptionsFormV
     if (!file && url) setPreview(url || null);
   }, [form]);
 
-  async function onSubmit(data: OptionsFormValues) {
-    toast.success(
-      <div>
-        <pre>
-          {JSON.stringify(
-            {
-              ...data,
-              logoObj:
-                data.logoObj instanceof File
-                  ? {
-                      name: data.logoObj.name,
-                      size: data.logoObj.size,
-                      type: data.logoObj.type,
-                    }
-                  : null,
-            },
-            null,
-            2
-          )}
-        </pre>
+  async function onInvalid(errors: unknown) {
+    // Extract and show concise validation messages
+    function flattenMessages(input: unknown, prefix = '', seen = new WeakSet<object>()): string[] {
+      if (!input) return [];
+
+      // Error instance
+      if (input instanceof Error) return [input.message];
+
+      // Arrays
+      if (Array.isArray(input)) {
+        return input.flatMap((item) => flattenMessages(item, prefix, seen));
+      }
+
+      // Primitive (string/number/etc.) - no message path
+      if (typeof input !== 'object') return [];
+
+      // Prevent circular refs
+      if (seen.has(input as object)) return [];
+      seen.add(input as object);
+
+      // FieldError-like (has message)
+      if ('message' in (input as any) && typeof (input as any).message === 'string') {
+        const msg = (input as any).message as string;
+        return prefix ? [`${prefix}: ${msg}`] : [msg];
+      }
+
+      // Generic object: recurse properties
+      return Object.entries(input as Record<string, unknown>).flatMap(([key, value]) => {
+        const path = prefix ? `${prefix}.${key}` : key;
+        return flattenMessages(value, path, seen);
+      });
+    }
+
+    const messages = flattenMessages(errors);
+
+    toast.error(
+      <div className="whitespace-pre-line">
+        {messages.length ? `Validation errors:\n${messages.join('\n')}` : 'Validation failed.'}
       </div>
     );
+  }
 
+  async function onSubmit(data: OptionsFormValues) {
     // Build FormData (this is the key change)
     const fd = new FormData();
     // append primitives
@@ -131,14 +153,23 @@ export default function CompanySettingsForm({ options }: { options: OptionsFormV
           <pre>{JSON.stringify(result.toJSON(), null, 2)}</pre>
         </div>
       );
+
       return result;
     }
+
+    if (!result) {
+      toast.error('Failed to update settings');
+      return result;
+    }
+
+    toast.success('Successfully updated options');
+    router.refresh();
   }
 
   return (
     <div className="space-y-6">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 @container">
+        <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6 @container">
           {/* Hidden/visible field for persisted URL (optional: keep it visible for manual paste) */}
           <FormField
             name="logo"

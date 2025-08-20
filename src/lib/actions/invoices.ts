@@ -1,11 +1,10 @@
 'use server';
 
 import { getOrderById } from '@/db/drizzle/queries/orders';
-import { logger } from '../logger';
 import { getOptionsFormRecords } from '@/db/drizzle/queries/options';
 import { AppError } from '../appError';
-import { buildInvoicePdf } from '../pdf/invoice';
-import { saveBufferAsLocalFile } from '../storage/local';
+import { buildInvoicePdfStream } from '../pdf/invoice';
+import { getUserById } from '@/db/drizzle/queries/users';
 
 function nextInvoiceNumber(orderId: number) {
   // Temp: INV-YYYYMMDD-<orderId>
@@ -48,9 +47,14 @@ export async function generateInvoiceAction(orderId: number) {
       );
     }
 
-    // Build PDF
+    const client = await getUserById(order.clientId);
+    if (client instanceof AppError) {
+      return client;
+    }
+
+    // Build PDF using streaming approach
     const invoiceNo = nextInvoiceNumber(orderId);
-    const pdf = await buildInvoicePdf(
+    const { url } = await buildInvoicePdfStream(
       order,
       {
         companyName: options.companyName,
@@ -66,11 +70,10 @@ export async function generateInvoiceAction(orderId: number) {
         notes: options.notes || '',
         logo: options.logo, // URL to /media/...
       },
+      client,
       invoiceNo
     );
 
-    // Save locally
-    const { url } = await saveBufferAsLocalFile(pdf, 'invoices', `${invoiceNo}.pdf`);
     const downloadUrl = `${url}?download=1`;
 
     // TODO: later create a record in DB: invoices(id, orderId, number, fileUrl, issuedAt, total, ...)

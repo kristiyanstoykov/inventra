@@ -24,7 +24,11 @@ export const optionsSchema = z.object({
   notes: z.string().optional().or(z.literal('')),
 
   // URL used for preview + persisted to DB (maps to options key "logo")
-  logo: z.string().url('Invalid URL').or(z.literal('')).optional(),
+  logo: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || /^(https?:\/\/|\/|data:|blob:).+/.test(v), 'Invalid URL')
+    .optional(),
 
   // optional file for replacing the logo; validate only if provided
   logoObj: z

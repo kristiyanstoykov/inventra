@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import './globals.css';
-// import Header from '@/components/Header';
 import { ThemeScript } from '@/lib/themeScript';
 import { Suspense } from 'react';
 import { Toaster } from '@/components/ui/sonner';

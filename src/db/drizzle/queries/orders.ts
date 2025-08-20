@@ -149,6 +149,7 @@ export async function getOrderById(id: number | string | Promise<number | string
                 'id', ${OrderItemTable.id},
                 'productId', ${OrderItemTable.productId},
                 'name', ${OrderItemTable.name},
+                'sn', ${OrderItemTable.sn},
                 'quantity', ${OrderItemTable.quantity},
                 'price', ${OrderItemTable.price}
               )
