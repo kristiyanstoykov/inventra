@@ -194,11 +194,7 @@ export async function buildInvoicePdfStream(
   doc.registerFont('B', FONT_BOLD);
   doc.font('R');
 
-  const orderIdStr = order.id
-    .toString()
-    .padStart(invoiceNo.length - order.id.toString().length, '0');
-
-  await generateInvoiceHeader(doc, company, invoiceNo, orderIdStr);
+  await generateInvoiceHeader(doc, company, invoiceNo);
   const afterHeaderY = generateSupplierCustomerInfo(doc, company, order, client);
 
   const tableStartY = Math.max(layout.y.tableTop, afterHeaderY + 16);
@@ -221,8 +217,7 @@ export async function buildInvoicePdfStream(
 async function generateInvoiceHeader(
   doc: InstanceType<typeof PDFDocument>,
   company: CompanyOptions,
-  invoiceNo: string,
-  orderNo: string
+  invoiceNo: string
 ) {
   // Logo
   try {
@@ -236,15 +231,18 @@ async function generateInvoiceHeader(
   doc
     .fillColor('#444444')
     .fontSize(8)
-    .text('ОРИГИНАЛ', { align: 'center' })
+    .text('ОРИГИНАЛ', 100, layout.y.headerRightY, { align: 'center' })
+    .fontSize(20)
+    .fillColor('#f98015')
+    .font('B')
+    .text(company.companyName, { align: 'center' })
+    .fillColor('#444444')
     .fontSize(20)
     .font('B')
     .text('Фактура', 200, layout.y.headerRightY, { align: 'right' })
-    .text('Поръчка', 200, layout.y.headerRightY + 50, { align: 'right' })
     .fontSize(12)
     .font('R')
-    .text(`№ ${invoiceNo}`, 200, layout.y.headerRightY + 30, { align: 'right' })
-    .text(`№ ${orderNo}`, 200, layout.y.headerRightY + 80, { align: 'right' });
+    .text(`№ ${invoiceNo}`, 200, layout.y.headerRightY + 30, { align: 'right' });
 
   doc.moveDown();
 }
@@ -529,16 +527,16 @@ function drawSignatureBlock(
   const lineY = y + 32;
   const lineWidth = width - (labelWidth + 16);
 
-  doc.fontSize(10).font('B').text(heading, x, y, { width });
+  doc.fontSize(8).font('R').text(heading, x, y, { width });
   doc
     .font('B')
-    .fontSize(9)
+    .fontSize(10)
     .text(nameBold || '—', x, y + 14, { width });
 
   // 'Signature:' + line
   doc
     .font('R')
-    .fontSize(9)
+    .fontSize(8)
     .text('Подпис:', x, y + 28, { width: labelWidth });
   doc
     .strokeColor('#000000')

@@ -58,7 +58,7 @@ export async function getAllOrders(
 ): Promise<OrderRow[] | AppError> {
   try {
     const offset = (page - 1) * pageSize;
-
+    await db.execute(sql`SET SESSION group_concat_max_len = 1000000`);
     const itemsJson = sql<OrderItemAgg[]>`
       COALESCE(
         CAST(
@@ -69,6 +69,7 @@ export async function getAllOrders(
                 'id', ${OrderItemTable.id},
                 'productId', ${OrderItemTable.productId},
                 'name', ${OrderItemTable.name},
+                'sn', ${OrderItemTable.sn},
                 'quantity', ${OrderItemTable.quantity},
                 'price', ${OrderItemTable.price}
               )
