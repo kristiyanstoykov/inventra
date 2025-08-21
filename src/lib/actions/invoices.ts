@@ -1,90 +1,64 @@
 'use server';
 
-import { getOrderById } from '@/db/drizzle/queries/orders';
-import { getOptionsFormRecords } from '@/db/drizzle/queries/options';
 import { AppError } from '../appError';
-import { buildInvoicePdfStream } from '../pdf/invoice';
-import { getUserById } from '@/db/drizzle/queries/users';
+import { createInvoice, getInvoiceById, getInvoiceByOrderId } from '@/db/drizzle/queries/invoices';
+import { logger } from '../logger';
 
-function nextInvoiceNumber(orderId: number) {
-  // Temp: INV-YYYYMMDD-<orderId>
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `INV-${y}${m}${day}-${orderId}`;
-}
-
-export async function generateInvoiceAction(orderId: number) {
+export async function handleInvoiceAction(orderId: number) {
   try {
     if (!orderId || isNaN(orderId)) {
       return new AppError('Invalid order ID', 'INVALID_ID');
     }
 
-    const order = await getOrderById(orderId);
-    if (!order) return new Error(`Order #${orderId} not found`);
+    const invoiceByOrderId = await getInvoiceByOrderId(orderId);
 
-    if (order instanceof AppError) {
-      throw new Error(order.toString());
+    if (invoiceByOrderId instanceof AppError) {
+      return invoiceByOrderId;
     }
 
-    const options = await getOptionsFormRecords();
-    if (options instanceof AppError) return options;
-
-    if (options instanceof AppError) {
-      throw new Error(options.toString());
-    }
-
-    // required
-    const missing: string[] = [];
-    if (!options.logo) missing.push('Company logo (logo)');
-    if (!options.companyName) missing.push('Company name (companyName)');
-    if (!options.uic) missing.push('Company registration number (uic)');
-    if (missing.length) {
-      return new AppError(
-        `Missing required invoice fields: ${missing.join(', ')}`,
-        'MISSING_COMPANY_DATA'
-      );
-    }
-
-    const client = await getUserById(order.clientId);
-    if (client instanceof AppError) {
-      return client;
+    if (invoiceByOrderId) {
+      return {
+        error: false,
+        message: 'Invoice found. redirecting...',
+        invoiceNumber: invoiceByOrderId.id,
+        fileUrl: invoiceByOrderId.fileUrl,
+        fileName: invoiceByOrderId.fileName,
+        downloadUrl: `${invoiceByOrderId.fileUrl}?download=1`,
+      };
     }
 
     // Build PDF using streaming approach
-    const invoiceNo = nextInvoiceNumber(orderId);
-    const { url } = await buildInvoicePdfStream(
-      order,
-      {
-        companyName: options.companyName,
-        uic: options.uic,
-        vatNumber: options.vatNumber || '',
-        email: options.email || '',
-        phone: options.phone || '',
-        address: options.address || '',
-        city: options.city || '',
-        postalCode: options.postalCode || '',
-        country: options.country || '',
-        representative: options.representative || '',
-        notes: options.notes || '',
-        logo: options.logo, // URL to /media/...
-      },
-      client,
-      invoiceNo
-    );
+    const invoiceId = await createInvoice(orderId, { createdAt: new Date() });
 
-    const downloadUrl = `${url}?download=1`;
+    if (invoiceId instanceof AppError) {
+      return invoiceId;
+    }
 
-    // TODO: later create a record in DB: invoices(id, orderId, number, fileUrl, issuedAt, total, ...)
+    const invoice = await getInvoiceById(invoiceId);
+
+    if (null === invoice) {
+      throw new Error(`Invoice #${invoiceId} not found`);
+    }
+    if (invoice instanceof AppError) {
+      return invoice;
+    }
+
+    if (!invoice.fileUrl) {
+      throw new Error(`Invoice #${invoiceId} does not have a file URL`);
+    }
+
+    const downloadUrl = `${invoice.fileUrl}?download=1`;
+
     return {
       error: false,
       message: 'Successfully generated invoice',
-      invoiceNumber: invoiceNo,
-      fileUrl: url, // e.g. /media/invoices/INV-20250814-39.pdf
+      invoiceNumber: invoiceId,
+      fileName: invoice.fileName,
+      fileUrl: invoice.fileUrl,
       downloadUrl,
     };
   } catch (error) {
+    logger.logError(error, 'GENERATE_INVOICE');
     const message = error instanceof Error ? error.message : 'Failed to generate invoice';
     return new AppError(message, 'GENERATE_FAILED');
   }

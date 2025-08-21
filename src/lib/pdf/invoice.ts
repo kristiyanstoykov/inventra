@@ -2,6 +2,8 @@ import PDFDocument from 'pdfkit';
 import path from 'node:path';
 import fs from 'node:fs';
 import { loadImageForPdf } from './img';
+import { logger } from '../logger';
+import { AppError } from '../appError';
 
 const FONT_REGULAR = path.join(process.cwd(), 'assets/fonts/DejaVuSans.ttf');
 const FONT_BOLD = path.join(process.cwd(), 'assets/fonts/DejaVuSans-Bold.ttf');
@@ -170,47 +172,54 @@ export async function buildInvoicePdfStream(
   company: CompanyOptions,
   client: UserType,
   invoiceNo: string,
+  fileName: string,
   subdir: string = 'invoices'
-): Promise<{ url: string; fsPath: string }> {
-  if (!company.logo) throw new Error('Missing company logo. Add a logo in settings.');
-  if (!company.companyName || !company.uic)
-    throw new Error('Missing required supplier data (name/UIC).');
+): Promise<{ url: string; fsPath: string } | AppError> {
+  try {
+    if (!company.logo) throw new Error('Missing company logo. Add a logo in settings.');
+    if (!company.companyName || !company.uic)
+      throw new Error('Missing required supplier data (name/UIC).');
 
-  ensureFontFile(FONT_REGULAR);
-  ensureFontFile(FONT_BOLD);
+    ensureFontFile(FONT_REGULAR);
+    ensureFontFile(FONT_BOLD);
 
-  const uploadRoot = path.join(process.cwd(), 'uploads');
-  const dir = path.join(uploadRoot, subdir);
-  const filename = `${invoiceNo}.pdf`;
-  const fsPath = path.join(dir, filename);
-  const url = `/media/${subdir}/${filename}`;
-  await fs.promises.mkdir(dir, { recursive: true });
+    const uploadRoot = path.join(process.cwd(), 'uploads');
+    const dir = path.join(uploadRoot, subdir);
+    const invFileName = `${fileName}.pdf`;
+    const fsPath = path.join(dir, invFileName);
+    const url = `/media/${subdir}/${invFileName}`;
+    await fs.promises.mkdir(dir, { recursive: true });
 
-  const doc = new PDFDocument({ size: 'A4', margin: 36 });
-  const stream = fs.createWriteStream(fsPath, { mode: 0o644 });
-  doc.pipe(stream);
+    const doc = new PDFDocument({ size: 'A4', margin: 36 });
+    const stream = fs.createWriteStream(fsPath, { mode: 0o644 });
+    doc.pipe(stream);
 
-  doc.registerFont('R', FONT_REGULAR);
-  doc.registerFont('B', FONT_BOLD);
-  doc.font('R');
+    doc.registerFont('R', FONT_REGULAR);
+    doc.registerFont('B', FONT_BOLD);
+    doc.font('R');
 
-  await generateInvoiceHeader(doc, company, invoiceNo);
-  const afterHeaderY = generateSupplierCustomerInfo(doc, company, order, client);
+    await generateInvoiceHeader(doc, company, invoiceNo);
+    const afterHeaderY = generateSupplierCustomerInfo(doc, company, order, client);
 
-  const tableStartY = Math.max(layout.y.tableTop, afterHeaderY + 16);
-  doc.y = tableStartY;
+    const tableStartY = Math.max(layout.y.tableTop, afterHeaderY + 16);
+    doc.y = tableStartY;
 
-  const total = generateInvoiceTable(doc, order);
-  generateInvoiceFooter(doc, company, order, client);
+    generateInvoiceTable(doc, order);
+    generateInvoiceFooter(doc, company, order, client);
 
-  doc.end();
+    doc.end();
 
-  await new Promise<void>((resolve, reject) => {
-    stream.on('finish', resolve);
-    stream.on('error', reject);
-  });
+    await new Promise<void>((resolve, reject) => {
+      stream.on('finish', resolve);
+      stream.on('error', reject);
+    });
 
-  return { url, fsPath };
+    return { url, fsPath };
+  } catch (error) {
+    logger.logError(error, 'CREATE_INVOICE');
+    const message = error instanceof Error ? error.message : 'Failed to create invoice';
+    return new AppError(message, 'CREATE_FAILED');
+  }
 }
 
 // ---------- Sections ----------
@@ -260,8 +269,13 @@ function generateSupplierCustomerInfo(
   generateHr(doc, top - 5);
 
   // Заглавия
-  doc.fontSize(10).font('B').text('Получател:', 50, top).text('Доставчик:', 300, top);
-  doc.fontSize(8).font('R');
+  doc
+    .fontSize(10)
+    .font('B')
+    .fillColor('#f98015')
+    .text('Получател:', 50, top)
+    .text('Доставчик:', 300, top);
+  doc.fontSize(8).font('R').fillColor('#444444');
 
   // Ляво — клиент
   let yL = top + 18;
@@ -343,9 +357,6 @@ function generateSupplierCustomerInfo(
 }
 
 function generateInvoiceTable(doc: InstanceType<typeof PDFDocument>, order: Order): number {
-  const col = layout.columns.table;
-  const startX = col.x;
-
   // Header
   doc.font('B').fontSize(9);
   const headerY = doc.y + 10;
@@ -496,6 +507,7 @@ function drawTotals(
   rows.forEach(([label, value], idx) => {
     const isTotal = idx === rows.length - 1;
     doc.font(isTotal ? 'B' : 'R');
+    doc.fillColor(isTotal ? '#f98015' : '#444444');
     const labelX = rightEdge - (labelWidth + valueWidth + gap);
     const valueX = rightEdge - valueWidth;
 
@@ -511,6 +523,7 @@ function drawTotals(
     cy += lh + 1;
   });
   doc.font('R');
+  doc.fillColor('#444444');
 }
 
 // helper for 'signature' block

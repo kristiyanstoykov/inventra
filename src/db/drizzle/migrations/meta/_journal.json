@@ -141,6 +141,41 @@
       "when": 1755525898897,
       "tag": "0019_giant_zarda",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1755768800200,
+      "tag": "0020_harsh_bulldozer",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1755781090505,
+      "tag": "0021_military_hellion",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "5",
+      "when": 1755784687982,
+      "tag": "0022_rapid_goliath",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1755784813897,
+      "tag": "0023_magenta_black_crow",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1755786405078,
+      "tag": "0024_material_rogue",
+      "breakpoints": true
     }
   ]
 }

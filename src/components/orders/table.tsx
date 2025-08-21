@@ -25,9 +25,7 @@ import { empty } from '@/lib/empty';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { deleteOrderAction } from '@/lib/actions/orders';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { generateInvoiceAction } from '@/lib/actions/invoices';
-import { useInvoiceDownload } from '@/hooks/useInvoiceDownload';
-import { LoadingSwap } from '../LoadingSwap';
+import { handleInvoice } from './handleInvoice';
 
 type Orders = InferSelectModel<typeof OrderTable> & {
   clientFirstName: string;
@@ -37,6 +35,7 @@ type Orders = InferSelectModel<typeof OrderTable> & {
   orderTotal: string;
   paymentTypeId: number;
   paymentType: string;
+  invoiceId: number | null;
   items?: {
     id: number;
     productId: number;
@@ -268,10 +267,9 @@ export function OrdersTable({
   );
 }
 
-function ActionCell({ id }: { id: number }) {
+function ActionCell({ id, invoiceId }: { id: number; invoiceId: number | null | undefined }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { handleInvoice, downloadingId } = useInvoiceDownload();
 
   async function handleDelete(id: number) {
     const result = await deleteOrderAction(id);
@@ -306,8 +304,9 @@ function ActionCell({ id }: { id: number }) {
         <Tooltip>
           <TooltipTrigger asChild>
             <ActionButton
-              variant={'secondary'}
-              className="border border-emerald-500 bg-emerald-100 dark:bg-emerald-700 dark:hover:bg-emerald-800"
+              variant={'outline'}
+              // className="border border-emerald-500 bg-emerald-100 dark:bg-emerald-700 dark:hover:bg-emerald-800"
+              className="border border-emerald-500 hover:bg-emerald-200 dark:hover:bg-emerald-800"
               action={async () => {
                 await new Promise((res) => setTimeout(res, 1000));
                 console.log(`Order #${id}`);
@@ -327,16 +326,17 @@ function ActionCell({ id }: { id: number }) {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              onClick={() => handleInvoice(id)}
-              disabled={downloadingId === id}
-              variant={'secondary'}
-              className="border border-emerald-500 bg-emerald-100 dark:bg-emerald-700 dark:hover:bg-emerald-800"
+            <ActionButton
+              action={async () => handleInvoice(id, router)}
+              variant="outline"
+              className={
+                !empty(invoiceId)
+                  ? 'border border-emerald-500 bg-emerald-100 dark:bg-emerald-700 dark:hover:bg-emerald-800'
+                  : 'border border-emerald-500 hover:bg-emerald-200 dark:hover:bg-emerald-800'
+              }
             >
-              <LoadingSwap isLoading={downloadingId === id}>
-                <ReceiptEuro className="size-4" />
-              </LoadingSwap>
-            </Button>
+              <ReceiptEuro className="size-4" />
+            </ActionButton>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-sm">
             Invoice

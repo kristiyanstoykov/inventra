@@ -6,6 +6,7 @@ import {
   UserTable,
   PaymentTypesTable,
   UserRoleTable,
+  InvoicesTable,
 } from '@/db/drizzle/schema';
 import { and, gte, eq, sql, or, like, desc, asc, inArray } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
@@ -91,6 +92,7 @@ export async function getAllOrders(
         paymentTypeId: OrderTable.paymentType,
         paymentType: PaymentTypesTable.name,
         status: OrderTable.status,
+        invoiceId: InvoicesTable.id,
         createdAt: OrderTable.createdAt,
         clientFirstName: UserTable.firstName,
         clientLastName: UserTable.lastName,
@@ -103,6 +105,7 @@ export async function getAllOrders(
       .leftJoin(UserTable, eq(OrderTable.clientId, UserTable.id))
       .leftJoin(OrderItemTable, eq(OrderItemTable.orderId, OrderTable.id))
       .leftJoin(PaymentTypesTable, eq(OrderTable.paymentType, PaymentTypesTable.id))
+      .leftJoin(InvoicesTable, eq(OrderTable.id, InvoicesTable.orderId))
       .limit(pageSize)
       .offset(offset)
       .groupBy(OrderTable.id);

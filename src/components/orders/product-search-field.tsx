@@ -135,7 +135,6 @@ export function SelectProductsField<TFieldValues extends FieldValues = FieldValu
   useEffect(() => {
     const list = Array.isArray(initialItems) ? initialItems.filter(isInitialItem) : [];
     if (list.length === 0) return;
-    console.log('Prepopulating with initial items:');
 
     // 1) Seed cache from product payload; let order snapshot override name/price if provided
     setCache((prev) => {

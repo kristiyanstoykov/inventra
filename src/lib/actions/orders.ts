@@ -12,8 +12,6 @@ export async function createOrderAction(data: z.infer<typeof OrderSchema>) {
 }
 
 export async function updateOrderAction(id: number, data: z.infer<typeof OrderSchema>) {
-  console.log('Order data submitted:', data);
-
   const result = await updateOrder(id, data);
 
   return result;

@@ -84,11 +84,8 @@ export function SelectSearchClient<TFieldValues extends FieldValues = FieldValue
         return;
       }
 
-      console.log(resolveLabel);
-
       if (resolveLabel) {
         const name = await resolveLabel(currentId);
-        console.log('Resolved name:', name);
         if (name) setSelectedName(name);
       }
     })();

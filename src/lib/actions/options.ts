@@ -42,8 +42,6 @@ export async function updateOptionsBulkAction(fd: FormData) {
       finalLogoUrl = await uploadLogo(logoObj);
     }
 
-    console.log('data', { ...raw, finalLogoUrl });
-
     // Persist (DB key "logo" stores URL)
     return await updateOptionsBulk({
       companyName: parsed.data.companyName,
