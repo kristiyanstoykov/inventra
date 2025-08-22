@@ -9,6 +9,7 @@ import {
   ListCheck,
   Tag,
   Settings,
+  ReceiptEuro,
 } from 'lucide-react';
 import { AppSidebar } from '@/components/sidebar/AppSidebar';
 import { SidebarNavMenuGroup } from '@/components/sidebar/SidebarNavMenuGroups';
@@ -67,6 +68,11 @@ export default function AdminLayout({
                 href: '/admin/orders',
                 icon: <ClipboardListIcon />,
                 label: 'Orders',
+              },
+              {
+                href: '/admin/invoices',
+                icon: <ReceiptEuro />,
+                label: 'Invoices',
               },
               {
                 href: '/admin/users',

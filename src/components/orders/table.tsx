@@ -219,7 +219,8 @@ function getColumns(): ColumnDef<Orders>[] {
       id: 'actions',
       cell: ({ row }) => {
         const id = row.original.id;
-        return <ActionCell id={id} />;
+        const invoiceId = row.original.invoiceId;
+        return <ActionCell id={id} invoiceId={invoiceId} />;
       },
     },
   ];
@@ -330,16 +331,16 @@ function ActionCell({ id, invoiceId }: { id: number; invoiceId: number | null | 
               action={async () => handleInvoice(id, router)}
               variant="outline"
               className={
-                !empty(invoiceId)
-                  ? 'border border-emerald-500 bg-emerald-100 dark:bg-emerald-700 dark:hover:bg-emerald-800'
-                  : 'border border-emerald-500 hover:bg-emerald-200 dark:hover:bg-emerald-800'
+                empty(invoiceId)
+                  ? 'border border-emerald-500 hover:bg-emerald-200 dark:hover:bg-emerald-800'
+                  : 'border border-emerald-500 bg-emerald-300 hover:bg-emerald-400 dark:bg-emerald-700 dark:hover:bg-emerald-800'
               }
             >
               <ReceiptEuro className="size-4" />
             </ActionButton>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="text-sm">
-            Invoice
+            {empty(invoiceId) ? `Generate invoice` : `Invoice #${invoiceId}`}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

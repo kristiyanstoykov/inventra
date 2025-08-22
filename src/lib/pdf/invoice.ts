@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { loadImageForPdf } from './img';
 import { logger } from '../logger';
 import { AppError } from '../appError';
+import { formatDate } from 'date-fns';
 
 const FONT_REGULAR = path.join(process.cwd(), 'assets/fonts/DejaVuSans.ttf');
 const FONT_BOLD = path.join(process.cwd(), 'assets/fonts/DejaVuSans-Bold.ttf');
@@ -173,7 +174,9 @@ export async function buildInvoicePdfStream(
   client: UserType,
   invoiceNo: string,
   fileName: string,
-  subdir: string = 'invoices'
+  subdir: string = 'invoices',
+  invoiceCopy: boolean = false,
+  createdAt: Date | null
 ): Promise<{ url: string; fsPath: string } | AppError> {
   try {
     if (!company.logo) throw new Error('Missing company logo. Add a logo in settings.');
@@ -183,9 +186,12 @@ export async function buildInvoicePdfStream(
     ensureFontFile(FONT_REGULAR);
     ensureFontFile(FONT_BOLD);
 
+    const date = createdAt
+      ? formatDate(createdAt, 'dd.MM.yyyy')
+      : formatDate(new Date(), 'dd.MM.yyyy');
     const uploadRoot = path.join(process.cwd(), 'uploads');
     const dir = path.join(uploadRoot, subdir);
-    const invFileName = `${fileName}.pdf`;
+    const invFileName = invoiceCopy ? `${fileName}-copy.pdf` : `${fileName}.pdf`;
     const fsPath = path.join(dir, invFileName);
     const url = `/media/${subdir}/${invFileName}`;
     await fs.promises.mkdir(dir, { recursive: true });
@@ -198,7 +204,7 @@ export async function buildInvoicePdfStream(
     doc.registerFont('B', FONT_BOLD);
     doc.font('R');
 
-    await generateInvoiceHeader(doc, company, invoiceNo);
+    await generateInvoiceHeader(doc, company, invoiceNo, invoiceCopy, date);
     const afterHeaderY = generateSupplierCustomerInfo(doc, company, order, client);
 
     const tableStartY = Math.max(layout.y.tableTop, afterHeaderY + 16);
@@ -226,7 +232,9 @@ export async function buildInvoicePdfStream(
 async function generateInvoiceHeader(
   doc: InstanceType<typeof PDFDocument>,
   company: CompanyOptions,
-  invoiceNo: string
+  invoiceNo: string,
+  invoiceCopy: boolean = false,
+  date: string
 ) {
   // Logo
   try {
@@ -236,11 +244,14 @@ async function generateInvoiceHeader(
     // ignore
   }
 
+  // Left-pad invoice number to 10 total digits (e.g., 1 -> 0000000001)
+  invoiceNo = String(invoiceNo).padStart(10, '0');
+  const originalText = invoiceCopy ? 'Копие' : 'ОРИГИНАЛ';
   // Right title
   doc
     .fillColor('#444444')
     .fontSize(8)
-    .text('ОРИГИНАЛ', 100, layout.y.headerRightY, { align: 'center' })
+    .text(originalText, 100, layout.y.headerRightY, { align: 'center' })
     .fontSize(20)
     .fillColor('#f98015')
     .font('B')
@@ -251,7 +262,10 @@ async function generateInvoiceHeader(
     .text('Фактура', 200, layout.y.headerRightY, { align: 'right' })
     .fontSize(12)
     .font('R')
-    .text(`№ ${invoiceNo}`, 200, layout.y.headerRightY + 30, { align: 'right' });
+    .text(`№ ${invoiceNo}`, 200, layout.y.headerRightY + 30, { align: 'right' })
+    .fontSize(8)
+    .font('B')
+    .text(`Дата на издаване: ${date}`, 200, layout.y.headerRightY + 50, { align: 'right' });
 
   doc.moveDown();
 }

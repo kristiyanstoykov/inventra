@@ -74,7 +74,20 @@ export async function createInvoice(
         options,
         client,
         id.toString(),
-        fileName
+        fileName,
+        'invoices',
+        false,
+        insertedInv[0].createdAt
+      );
+      const fileInvoiceCopy = await buildInvoicePdfStream(
+        order,
+        options,
+        client,
+        id.toString(),
+        fileName,
+        'invoices',
+        true,
+        insertedInv[0].createdAt
       );
 
       if (fileInvoice instanceof AppError) {
@@ -83,6 +96,14 @@ export async function createInvoice(
 
       if (empty(fileInvoice.url)) {
         throw new Error('Failed to generate invoice PDF');
+      }
+
+      if (fileInvoiceCopy instanceof AppError) {
+        throw new Error(fileInvoiceCopy.toString());
+      }
+
+      if (empty(fileInvoiceCopy.url)) {
+        throw new Error('Failed to generate copy of invoice PDF');
       }
 
       const updateResult = await tx
@@ -245,5 +266,44 @@ export async function updateInvoiceFile(invoiceId: number, fileUrl: string) {
     logger.logError(error, 'UPDATE_INVOICE_FILE');
     const message = error instanceof Error ? error.message : 'Failed to update invoice file';
     return new AppError(message, 'UPDATE_FAILED');
+  }
+}
+
+export async function getInvoices() {
+  try {
+    const invoice = await db.select().from(InvoicesTable);
+
+    if (!invoice.length) {
+      return null;
+    }
+
+    return invoice;
+  } catch (error) {
+    logger.logError(error, 'GET_INVOICE_BY_ID');
+
+    if (error instanceof AppError) {
+      return error;
+    }
+
+    const isMySqlError = (
+      e: unknown
+    ): e is {
+      code?: string;
+      errno?: number;
+      sqlMessage?: string;
+      message?: string;
+    } => !!e && typeof e === 'object' && ('sqlMessage' in e || 'code' in e || 'errno' in e);
+
+    if (isMySqlError(error)) {
+      const parts: string[] = [];
+      if (error.sqlMessage) parts.push(error.sqlMessage);
+      else if (error.message) parts.push(error.message);
+      if (error.code) parts.push(`code: ${error.code}`);
+      if (typeof error.errno === 'number') parts.push(`errno: ${error.errno}`);
+      return new AppError(parts.join(' - '), 'GET_FAILED');
+    }
+
+    const message = error instanceof Error ? error.message : 'Failed to get invoice';
+    return new AppError(message, 'GET_FAILED');
   }
 }
