@@ -60,7 +60,7 @@ function getColumns(): ColumnDef<Orders>[] {
           <div className="flex items-center gap-2">
             <span>
               <Link
-                href={`/orders/edit/${id}`}
+                href={`order/edit/${id}`}
                 className="text-blue-800 dark:text-blue-300 hover:underline"
               >
                 #{id} {clientFirstName} {clientLastName}

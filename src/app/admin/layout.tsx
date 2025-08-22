@@ -70,14 +70,9 @@ export default function AdminLayout({
                 label: 'Orders',
               },
               {
-                href: '/admin/invoices',
-                icon: <ReceiptEuro />,
-                label: 'Invoices',
-              },
-              {
                 href: '/admin/users',
                 icon: <User />,
-                label: 'Clients',
+                label: 'Users',
               },
               {
                 href: '/admin/settings',

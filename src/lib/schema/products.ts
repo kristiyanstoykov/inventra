@@ -7,6 +7,7 @@ export const ProductSchema = z.object({
   sn: z.string().optional(),
   price: z.coerce.number(), // converts string → number
   salePrice: z.coerce.number().optional(),
+  warranty: z.coerce.number().optional(),
   deliveryPrice: z.coerce.number(),
   quantity: z.coerce.number(),
   brandId: z.coerce.number().optional(),

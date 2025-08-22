@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { AppError } from '@/lib/appError';
 import { ActionButton } from '../ActionButton';
 import { Badge } from '../ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 type Products = InferSelectModel<typeof ProductTable> & {
   categories: { id: number; name: string }[];
@@ -52,7 +53,7 @@ function getColumns(): ColumnDef<Products>[] {
         const name = row.original.name;
 
         return (
-          <div className="flex items-center gap-2">
+          <div className="max-w-[300px] flex items-center gap-2 text-wrap">
             <span>{name}</span>
           </div>
         );
@@ -151,6 +152,37 @@ function getColumns(): ColumnDef<Products>[] {
         return (
           <div className="flex items-center gap-2">
             <span>{quantity}</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'warranty',
+      accessorFn: (row) => row.warranty,
+      header: ({ column }) => (
+        <>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <DataTableSortableColumnHeader
+                  title="Warranty"
+                  column={column}
+                  className="text-wrap"
+                />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-sm">
+                Warranty in months
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </>
+      ),
+      cell: ({ row }) => {
+        const warranty = row.original.warranty;
+
+        return (
+          <div className="max-w-[10px] flex items-center gap-2">
+            <span>{warranty}</span>
           </div>
         );
       },

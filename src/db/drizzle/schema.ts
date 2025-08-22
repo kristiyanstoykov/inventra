@@ -11,6 +11,7 @@ import {
   decimal,
   longtext,
 } from 'drizzle-orm/mysql-core';
+import { _nullable } from 'zod/v4/core';
 
 /** ========== Enums ========== **/
 export const userRoles = ['admin', 'user', 'customer'] as const;
@@ -112,11 +113,11 @@ export const ProductTable = mysqlTable('products', {
   price: decimal('price', { precision: 10, scale: 2 }).notNull().default('0.00'),
   salePrice: decimal('sale_price', { precision: 10, scale: 2 }),
   deliveryPrice: decimal('delivery_price', { precision: 10, scale: 2 }),
-  quantity: decimal('quantity', { precision: 10, scale: 2 }).default('0.00'),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).default(''),
+  warranty: int().default(0),
   brandId: int('brand_id').references(() => ProductBrandTable.id),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
   updatedAt: datetime('updated_at')
-    .notNull()
     .default(sql`CURRENT_TIMESTAMP`)
     .$onUpdateFn(() => sql`CURRENT_TIMESTAMP`),
 });

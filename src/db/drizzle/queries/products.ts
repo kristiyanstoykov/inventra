@@ -307,6 +307,7 @@ export async function updateProduct(id: number, data: z.infer<typeof ProductSche
       sn: data.sn || null,
       price: data.price.toString(),
       deliveryPrice: normalizeNumber(data.deliveryPrice),
+      warranty: data.warranty,
       quantity: data.quantity,
       updatedAt: sql`CURRENT_TIMESTAMP`,
     };

@@ -17,18 +17,9 @@ import { LoadingSwap } from '@/components/LoadingSwap';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { ProductSchema, ProductType } from '@/lib/schema/products';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { FancyMultiSelect } from '@/components/ui/multi-select';
-import {
-  createProductAction,
-  updateProductAction,
-} from '@/lib/actions/products';
+import { createProductAction, updateProductAction } from '@/lib/actions/products';
 import { empty } from '@/lib/empty';
 
 export function ProductForm({
@@ -46,6 +37,7 @@ export function ProductForm({
     | 'salePrice'
     | 'deliveryPrice'
     | 'quantity'
+    | 'warranty'
     | 'sn'
     | 'brandId'
   >;
@@ -74,9 +66,7 @@ export function ProductForm({
   async function onSubmit(data: z.infer<typeof ProductSchema>) {
     try {
       const action =
-        product && product.id
-          ? updateProductAction.bind(null, product.id)
-          : createProductAction;
+        product && product.id ? updateProductAction.bind(null, product.id) : createProductAction;
 
       const res = await action(data);
 
@@ -94,8 +84,7 @@ export function ProductForm({
       toast.success(res.message || 'Action completed successfully.');
     } catch (err: any) {
       toast.error(
-        'There was an error adding the product: ' +
-          (err.message || 'Unexpected error.'),
+        'There was an error adding the product: ' + (err.message || 'Unexpected error.'),
         {
           dismissible: true,
         }
@@ -105,10 +94,7 @@ export function ProductForm({
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6 @container"
-      >
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 @container">
         <div className="flex flex-col md:flex-row gap-6">
           {/* LEFT MAIN FORM - 57% */}
           <div className="flex-1 md:max-w-[57%] space-y-6 md:border-r-2 md:pr-6">
@@ -166,12 +152,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>Sale Price</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        {...field}
-                        value={field.value ?? 0}
-                      />
+                      <Input type="number" step="0.01" {...field} value={field.value ?? 0} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -208,19 +189,34 @@ export function ProductForm({
             </div>
 
             {/* Row 3: Serial Number */}
-            <FormField
-              name="sn"
-              control={form.control}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Serial Number</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                name="sn"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Serial Number</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name="warranty"
+                control={form.control}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Warranty (in months)</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
 
           {/* RIGHT SIDEBAR - 40% */}
@@ -236,9 +232,7 @@ export function ProductForm({
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={
-                        product &&
-                        (product.brandId === null ||
-                          product.brandId === undefined)
+                        product && (product.brandId === null || product.brandId === undefined)
                           ? ''
                           : !empty(product)
                           ? String(product.brandId)
@@ -305,11 +299,7 @@ export function ProductForm({
           </div>
         </div>
 
-        <Button
-          disabled={form.formState.isSubmitting}
-          type="submit"
-          className="w-full"
-        >
+        <Button disabled={form.formState.isSubmitting} type="submit" className="w-full">
           <LoadingSwap isLoading={form.formState.isSubmitting}>
             {product ? 'Update Product' : 'Add Product'}
           </LoadingSwap>
