@@ -3,7 +3,7 @@ import { Metadata } from 'next';
 import { getInvoiceByFileName } from '@/db/drizzle/queries/invoices';
 import { Heading } from '@/components/ui/heading';
 import { ArrowLeft, Download, Loader2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { notFound } from 'next/navigation';
 import PdfViewer from '@/components/PdfViewer';
 import Link from 'next/link';
