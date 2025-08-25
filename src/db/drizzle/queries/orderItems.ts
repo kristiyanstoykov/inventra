@@ -45,6 +45,7 @@ export async function insertOrderItem(
             name: itemData.name,
             sku: itemData.sku ?? '',
             sn: itemData.sn ?? '',
+            warranty: itemData.warranty ?? null,
           };
         })
     );

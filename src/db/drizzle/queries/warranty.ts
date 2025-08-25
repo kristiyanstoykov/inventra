@@ -1,20 +1,20 @@
 'use server';
 
-import { InvoicesTable } from '../schema';
+import { InvoicesTable, WarrantyTable } from '../schema';
 import { InferSelectModel, eq } from 'drizzle-orm';
 import { db } from '../db';
 import { logger } from '@/lib/logger';
 import { AppError } from '@/lib/appError';
 import { ResultSetHeader } from 'mysql2';
-import { buildInvoicePdfStream } from '@/lib/pdf/invoice';
 import { getOrderById } from './orders';
 import { getUserById } from './users';
 import { getOptionsFormRecords } from './options';
 import { empty } from '@/lib/empty';
+import { buildWarrantyPdfStream } from '@/lib/pdf/warranty';
 
-export async function createInvoice(
+export async function createWarranty(
   orderId: number,
-  invoiceData: Pick<InferSelectModel<typeof InvoicesTable>, 'createdAt'>
+  warrantyData: Pick<InferSelectModel<typeof WarrantyTable>, 'createdAt'>
 ) {
   try {
     const order = await getOrderById(orderId);
@@ -46,52 +46,33 @@ export async function createInvoice(
       );
     }
 
-    const invoiceId = await db.transaction(async (tx) => {
+    const warrantyId = await db.transaction(async (tx) => {
       const inserted = await tx
-        .insert(InvoicesTable)
+        .insert(WarrantyTable)
         .values({
           orderId,
-          createdAt: invoiceData.createdAt ?? new Date(),
+          createdAt: warrantyData.createdAt ?? new Date(),
         })
         .$returningId();
 
       if (!inserted?.[0]?.id) {
-        throw new AppError('Failed to create invoice', 'CREATE_FAILED');
+        throw new AppError('Failed to create warranty', 'CREATE_FAILED');
       }
 
       const id = inserted[0].id;
-      if (!id) throw new AppError('Failed to create invoice', 'CREATE_FAILED');
+      if (!id) throw new AppError('Failed to create warranty', 'CREATE_FAILED');
 
-      const insertedInv = await tx
+      const insertedWarranty = await tx
         .select()
-        .from(InvoicesTable)
-        .where(eq(InvoicesTable.id, id))
+        .from(WarrantyTable)
+        .where(eq(WarrantyTable.id, id))
         .limit(1);
 
-      const date = insertedInv[0].createdAt ?? new Date();
+      const date = insertedWarranty[0].createdAt ?? new Date();
       const dateStr = date.toISOString().replace(/:/g, '-').slice(0, 19);
-      const fileName = `${insertedInv[0].id}-invoice-${orderId}-order-${dateStr}`;
+      const fileName = `${insertedWarranty[0].id}-warranty-${orderId}-order-${dateStr}`;
 
-      const fileInvoice = await buildInvoicePdfStream(
-        order,
-        options,
-        client,
-        id.toString(),
-        fileName,
-        'invoices',
-        false,
-        insertedInv[0].createdAt
-      );
-      const fileInvoiceCopy = await buildInvoicePdfStream(
-        order,
-        options,
-        client,
-        id.toString(),
-        fileName,
-        'invoices',
-        true,
-        insertedInv[0].createdAt
-      );
+      const fileInvoice = await buildWarrantyPdfStream(order, options, fileName, 'warranties');
 
       if (fileInvoice instanceof AppError) {
         throw new Error(fileInvoice.toString());
@@ -99,14 +80,6 @@ export async function createInvoice(
 
       if (empty(fileInvoice.url)) {
         throw new Error('Failed to generate invoice PDF');
-      }
-
-      if (fileInvoiceCopy instanceof AppError) {
-        throw new Error(fileInvoiceCopy.toString());
-      }
-
-      if (empty(fileInvoiceCopy.url)) {
-        throw new Error('Failed to generate copy of invoice PDF');
       }
 
       const updateResult = await tx
@@ -130,7 +103,11 @@ export async function createInvoice(
       return id;
     });
 
-    return invoiceId;
+    if (warrantyId instanceof Error) {
+      throw new Error(warrantyId.toString());
+    }
+
+    return warrantyId;
   } catch (error) {
     logger.logError(error, 'CREATE_INVOICE');
     const message = error instanceof Error ? error.message : 'Failed to create invoice';

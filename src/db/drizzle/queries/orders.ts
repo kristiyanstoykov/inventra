@@ -7,6 +7,7 @@ import {
   PaymentTypesTable,
   UserRoleTable,
   InvoicesTable,
+  WarrantyTable,
 } from '@/db/drizzle/schema';
 import { and, gte, eq, sql, or, like, desc, asc, inArray } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
@@ -143,6 +144,7 @@ export async function getOrderById(id: number | string | Promise<number | string
       return new AppError(`Invalid order ID: ${resolved}`, 'VALIDATION_ERROR');
     }
 
+    await db.execute(sql`SET SESSION group_concat_max_len = 1000000`);
     const itemsJson = sql<string>`
       COALESCE(
         CAST(
@@ -175,6 +177,7 @@ export async function getOrderById(id: number | string | Promise<number | string
         paymentTypeId: OrderTable.paymentType, // <- matches your column
         paymentType: PaymentTypesTable.name,
         status: OrderTable.status,
+        invoiceId: InvoicesTable.id,
         createdAt: OrderTable.createdAt,
         clientFirstName: UserTable.firstName,
         clientLastName: UserTable.lastName,
@@ -187,6 +190,7 @@ export async function getOrderById(id: number | string | Promise<number | string
       .leftJoin(UserTable, eq(OrderTable.clientId, UserTable.id))
       .leftJoin(OrderItemTable, eq(OrderItemTable.orderId, OrderTable.id))
       .leftJoin(PaymentTypesTable, eq(OrderTable.paymentType, PaymentTypesTable.id))
+      .leftJoin(InvoicesTable, eq(OrderTable.id, InvoicesTable.orderId))
       .where(eq(OrderTable.id, orderId))
       .groupBy(OrderTable.id)
       .limit(1);

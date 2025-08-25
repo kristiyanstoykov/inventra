@@ -1,10 +1,10 @@
-import { handleInvoiceAction } from '@/lib/actions/invoices';
 import { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { empty } from '@/lib/empty';
+import { handleWarrantyAction } from '@/lib/actions/warranties';
 
-export async function handleInvoice(orderId: number, router: AppRouterInstance) {
+export async function handleWarranty(orderId: number, router: AppRouterInstance) {
   try {
-    const res = await handleInvoiceAction(orderId);
+    const res = await handleWarrantyAction(orderId);
 
     if (res instanceof Error) {
       throw res;
@@ -15,11 +15,10 @@ export async function handleInvoice(orderId: number, router: AppRouterInstance) 
     }
 
     if (empty(res.invoiceNumber)) {
-      throw new Error('Failed to generate invoice');
+      throw new Error('Failed to generate warranty');
     }
 
-    const fileName = res.fileName;
-    const url = `/admin/invoices/${encodeURIComponent(fileName)}`;
+    const url = `/admin/${res.downloadUrl}`;
     // Prefetch for faster load (non-blocking)
     try {
       if (typeof router.prefetch === 'function') {
@@ -31,7 +30,7 @@ export async function handleInvoice(orderId: number, router: AppRouterInstance) 
 
     return { ...res };
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Failed to generate invoice';
+    const msg = error instanceof Error ? error.message : 'Failed to generate warranty';
     console.log('handleInvoice error:', msg);
     console.log('error:', error);
 

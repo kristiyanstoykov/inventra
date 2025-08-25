@@ -280,7 +280,24 @@ export const InvoicesTable = mysqlTable('invoices', {
     .unique()
     .references(() => OrderTable.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   fileUrl: varchar('file_url', { length: 255 }),
-  fileName: varchar('file_name', { length: 36 })
+  fileName: varchar('file_name', { length: 128 })
+    .notNull()
+    .$defaultFn(() => crypto.randomUUID()),
+  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: datetime('updated_at')
+    .default(sql`CURRENT_TIMESTAMP`)
+    .$onUpdateFn(() => sql`CURRENT_TIMESTAMP`),
+});
+
+/** ========== Invoices ========== **/
+export const WarrantyTable = mysqlTable('warranties', {
+  id: int('id').autoincrement().primaryKey().notNull(),
+  orderId: int('order_id')
+    .notNull()
+    .unique()
+    .references(() => OrderTable.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  fileUrl: varchar('file_url', { length: 255 }),
+  fileName: varchar('file_name', { length: 128 })
     .notNull()
     .$defaultFn(() => crypto.randomUUID()),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),

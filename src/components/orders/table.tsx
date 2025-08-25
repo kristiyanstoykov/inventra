@@ -26,6 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { deleteOrderAction } from '@/lib/actions/orders';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { handleInvoice } from './handleInvoice';
+import { handleWarranty } from './handleWarranty';
 
 type Orders = InferSelectModel<typeof OrderTable> & {
   clientFirstName: string;
@@ -75,7 +76,7 @@ function getColumns(): ColumnDef<Orders>[] {
       accessorFn: (row) => row.createdAt,
       header: ({ column }) => <DataTableSortableColumnHeader title="Date" column={column} />,
       cell: ({ row }) => {
-        const v = row.original.createdAt;
+        const v = row.original.createdAt || new Date();
         const d = v instanceof Date ? v : new Date(v);
         if (Number.isNaN(d.getTime())) return '—';
 
@@ -109,7 +110,14 @@ function getColumns(): ColumnDef<Orders>[] {
                     Click to view items <ChevronsUpDown className="size-4" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="p-3">
+
+                <PopoverContent
+                  side="bottom" // preferred, will auto-flip if needed
+                  align="start"
+                  sideOffset={6}
+                  collisionPadding={8}
+                  className="p-3 max-h-64 w-[min(90vw,28rem)] overflow-y-auto"
+                >
                   <ul className="text-[0.8rem] my-1 list-disc pl-5 [&>li]:mt-2">
                     {items.map((item) => (
                       <li key={item.id}>
@@ -308,14 +316,7 @@ function ActionCell({ id, invoiceId }: { id: number; invoiceId: number | null | 
               variant={'outline'}
               // className="border border-emerald-500 bg-emerald-100 dark:bg-emerald-700 dark:hover:bg-emerald-800"
               className="border border-emerald-500 hover:bg-emerald-200 dark:hover:bg-emerald-800"
-              action={async () => {
-                await new Promise((res) => setTimeout(res, 1000));
-                console.log(`Order #${id}`);
-                return {
-                  error: true,
-                  message: 'Unimplemented warranty action',
-                };
-              }}
+              action={async () => handleWarranty(id, router)}
             >
               <FileBadge2 className="size-4" />
             </ActionButton>

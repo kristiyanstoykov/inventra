@@ -37,8 +37,13 @@ export function ActionButton({
   function performAction() {
     startTransition(async () => {
       const data = await action();
+
+      console.log('ActionButton data:', data);
+
       if (data.error) {
         toast.error(data.message ?? 'Error');
+      } else if (data instanceof Error) {
+        toast.error(data.message);
       } else if (data.message) {
         toast.success(data.message);
       }
