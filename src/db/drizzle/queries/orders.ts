@@ -33,6 +33,7 @@ export type OrderItemAgg = {
   productId: number;
   name: string | null;
   quantity: number;
+  sn: string;
   price: number | string;
   warranty: number | null;
 };

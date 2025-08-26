@@ -9,6 +9,7 @@ import { AppError } from '../appError';
 import { logger } from '../logger';
 import { InferSelectModel } from 'drizzle-orm';
 import { OrderTable } from '@/db/drizzle/schema';
+import { OrderItemAgg } from '@/db/drizzle/queries/orders';
 
 const FONT_REGULAR = path.join(process.cwd(), 'assets/fonts/DejaVuSans.ttf');
 const FONT_BOLD = path.join(process.cwd(), 'assets/fonts/DejaVuSans-Bold.ttf');
@@ -16,17 +17,7 @@ const FONT_BOLD = path.join(process.cwd(), 'assets/fonts/DejaVuSans-Bold.ttf');
 type Order = Omit<InferSelectModel<typeof OrderTable>, 'paymentType' | 'updatedAt'> & {
   paymentType: (typeof OrderPaymentTypeEnum.options)[number] | null;
   invoiceId: number | null;
-  items?: OrderItem[] | string; // JSON string
-};
-
-type OrderItem = {
-  id: number;
-  name: string;
-  sn: string | null | undefined;
-  price: number;
-  quantity: number;
-  productId: number;
-  warranty?: number | null; // in months
+  items?: OrderItemAgg[] | string; // JSON string
 };
 
 type CompanyOptions = {
@@ -202,7 +193,7 @@ function generateWarrantyItemsTable(
   order: Order,
   purchaseDate: Date
 ) {
-  const items: OrderItem[] =
+  const items: OrderItemAgg[] =
     typeof order.items === 'string' ? JSON.parse(order.items) : order.items || [];
 
   const col = layout.colsWarranty;
