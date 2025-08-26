@@ -13,6 +13,7 @@ import {
   CardFooter,
 } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AppError } from '@/lib/appError';
 import { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -23,6 +24,20 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const fullUser = await getCurrentUser({ withFullUser: true });
+  if (fullUser instanceof AppError) {
+    return (
+      <>
+        <Header />
+        <div className="flex items-center justify-center p-4 pt-10">
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>User: Some error happened</CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -32,9 +47,7 @@ export default async function HomePage() {
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
               <CardTitle>Welcome</CardTitle>
-              <CardDescription>
-                Please sign in or create an account
-              </CardDescription>
+              <CardDescription>Please sign in or create an account</CardDescription>
             </CardHeader>
 
             <CardContent>

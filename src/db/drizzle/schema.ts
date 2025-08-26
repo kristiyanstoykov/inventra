@@ -26,7 +26,6 @@ export const UserTable = mysqlTable('users', {
   email: varchar('email', { length: 255 }).notNull(),
   salt: varchar('salt', { length: 255 }),
   password: text('password'),
-  role: userRoleEnum().notNull().default('user'),
   isCompany: boolean('is_company').notNull().default(false),
   firstName: varchar('first_name', { length: 255 }),
   lastName: varchar('last_name', { length: 255 }),
@@ -60,7 +59,7 @@ export const SessionTable = mysqlTable('sessions', {
 // Roles table
 export const RoleTable = mysqlTable('roles', {
   id: int('id').autoincrement().primaryKey().notNull(),
-  name: varchar('name', { length: 100 }).notNull(),
+  name: mysqlEnum('name', userRoles).notNull().unique(),
 });
 
 // Pivot: User_Roles

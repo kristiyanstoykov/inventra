@@ -38,8 +38,6 @@ export function ActionButton({
     startTransition(async () => {
       const data = await action();
 
-      console.log('ActionButton data:', data);
-
       if (data.error) {
         toast.error(data.message ?? 'Error');
       } else if (data instanceof Error) {

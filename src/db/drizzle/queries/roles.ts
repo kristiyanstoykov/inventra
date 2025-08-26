@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { RoleTable, UserRoleTable } from '../schema';
 import { AppError } from '@/lib/appError';
 import { getUserById } from './users';
+import { ResultSetHeader } from 'mysql2';
 
 export async function getAllRoles() {
   try {
@@ -155,9 +156,16 @@ export async function deleteUserRoleIdByUserId(userId: number) {
 
     const result = await db.delete(UserRoleTable).where(eq(UserRoleTable.userId, userId));
 
+    const raw = Array.isArray(result) ? result[0] : (result as ResultSetHeader);
+
     // MySqlRawQueryResult has an 'affectedRows' property
-    if (result.affectedRows === 0) {
-      return new AppError(`No user role found for user ID ${userId}`, 'USER_ROLE_NOT_FOUND');
+    const affectedRows = raw && typeof raw.affectedRows === 'number' ? raw.affectedRows : null;
+    if (affectedRows === 0) {
+      // Try to surface any server message (mysql2 exposes 'info')
+      const serverMsg =
+        (typeof raw?.info === 'string' && raw.info.length > 0 && raw.info) ||
+        `No user was deleted. User id ${userId}`;
+      throw new AppError(serverMsg, 'UPDATE_FAILED');
     }
 
     return { success: true, message: `Successfully deleted role for user ID ${userId}` };

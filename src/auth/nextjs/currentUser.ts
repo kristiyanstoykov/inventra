@@ -2,19 +2,11 @@ import { cookies } from 'next/headers';
 import { getUserFromSession } from '../core/session';
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
-import { db } from '@/db/drizzle/db';
-import { eq } from 'drizzle-orm';
-import { UserTable } from '@/db/drizzle/schema';
+import { getUserById } from '@/db/drizzle/queries/users';
 
-type FullUser = Exclude<
-  Awaited<ReturnType<typeof getUserFromDb>>,
-  undefined | null
->;
+type FullUser = Exclude<Awaited<ReturnType<typeof getUserById>>, undefined | null>;
 
-type User = Exclude<
-  Awaited<ReturnType<typeof getUserFromSession>>,
-  undefined | null
->;
+type User = Exclude<Awaited<ReturnType<typeof getUserFromSession>>, undefined | null>;
 
 function _getCurrentUser(options: {
   withFullUser: true;
@@ -32,10 +24,7 @@ function _getCurrentUser(options?: {
   withFullUser?: false;
   redirectIfNotFound?: false;
 }): Promise<User | null>;
-async function _getCurrentUser({
-  withFullUser = false,
-  redirectIfNotFound = false,
-} = {}) {
+async function _getCurrentUser({ withFullUser = false, redirectIfNotFound = false } = {}) {
   const user = await getUserFromSession(await cookies());
 
   if (user == null) {
@@ -44,7 +33,7 @@ async function _getCurrentUser({
   }
 
   if (withFullUser) {
-    const fullUser = await getUserFromDb(user.id);
+    const fullUser = await getUserById(user.id);
     // This should never happen
     if (fullUser == null) throw new Error('User not found in database');
     return fullUser;
@@ -54,16 +43,3 @@ async function _getCurrentUser({
 }
 
 export const getCurrentUser = cache(_getCurrentUser);
-
-function getUserFromDb(id: number) {
-  return db.query.UserTable.findFirst({
-    columns: {
-      id: true,
-      email: true,
-      role: true,
-      firstName: true,
-      lastName: true,
-    },
-    where: eq(UserTable.id, id),
-  });
-}

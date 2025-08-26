@@ -28,6 +28,7 @@ export function SignInForm() {
   });
 
   async function onSubmit(data: z.infer<typeof signInSchema>) {
+    setError(undefined);
     const error = await signIn(data);
     if (error instanceof Error) {
       setError(error.message);

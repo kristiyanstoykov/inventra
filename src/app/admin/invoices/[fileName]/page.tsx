@@ -38,7 +38,6 @@ async function SuspendedPage({ params }: InvoicePageProps) {
   const { fileName } = await params;
 
   const invoice = await getInvoiceByFileName(fileName);
-  console.log('invoice', invoice);
 
   // Not found
   if (invoice == null) {

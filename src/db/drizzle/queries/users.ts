@@ -8,6 +8,7 @@ import { hashPassword, generateSalt } from '@/auth/core/passwordHasher';
 import {
   addRoleToUser,
   deleteUserRoleIdByUserId,
+  getRoleById,
   getUserRoleIdByUserId,
   updateUserRole,
 } from './roles';
@@ -156,7 +157,7 @@ export async function updateUser(
       return new AppError(`No user found with ID: ${id}`, 'NOT_FOUND');
     }
 
-    const updateData: Record<string, any> = {};
+    const updateData: Record<string, unknown> = {};
 
     if (userData.email !== undefined) updateData.email = userData.email;
     if (userData.firstName !== undefined)
@@ -192,7 +193,8 @@ export async function updateUser(
     return true;
   } catch (error) {
     logger.logError(error, 'Repository: updateUser');
-    return new AppError(error.message ?? 'Failed to update user', 'UPDATE_FAILED');
+    const message = error instanceof Error ? error.message : 'Failed to update user';
+    return new AppError(message, 'UPDATE_FAILED');
   }
 }
 
@@ -257,9 +259,20 @@ export async function getUserById(id: number) {
     const baseUser = result[0];
     const userRoleId = await getUserRoleIdByUserId(result[0].id);
 
+    const roles = await db
+      .select({
+        roleName: RoleTable.name,
+      })
+      .from(UserRoleTable)
+      .innerJoin(RoleTable, eq(UserRoleTable.roleId, RoleTable.id))
+      .where(eq(UserRoleTable.userId, baseUser.id));
+
+    const roleNames = Array.from(new Set(roles.map((r) => r.roleName)));
+
     const user = {
       ...baseUser,
       ...(!(userRoleId instanceof AppError) && { roleId: userRoleId }),
+      role: roleNames,
     };
 
     return user;
@@ -415,4 +428,40 @@ export async function getUsersByName(
     logger.logError(error, 'Repository: getUsersByName');
     return new AppError('Failed to fetch users by name');
   }
+}
+
+export async function getUserByEmailAuth(email: string) {
+  const loweredEmail = email.toLowerCase().trim();
+
+  const result = await db
+    .select({
+      id: UserTable.id,
+      email: UserTable.email,
+      password: UserTable.password,
+      salt: UserTable.salt,
+    })
+    .from(UserTable)
+    .where(eq(sql`LOWER(${UserTable.email})`, loweredEmail))
+    .limit(1);
+
+  if (!result || result.length === 0) {
+    return null;
+  }
+
+  const baseUser = result[0];
+
+  const roles = await db
+    .select({
+      roleName: RoleTable.name,
+    })
+    .from(UserRoleTable)
+    .innerJoin(RoleTable, eq(UserRoleTable.roleId, RoleTable.id))
+    .where(eq(UserRoleTable.userId, baseUser.id));
+
+  const roleNames = Array.from(new Set(roles.map((r) => r.roleName)));
+
+  return {
+    ...baseUser,
+    role: roleNames,
+  };
 }

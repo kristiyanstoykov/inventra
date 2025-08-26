@@ -6,7 +6,7 @@ class Logger {
   private logFile: string;
 
   constructor() {
-    this.logDir = path.resolve(__dirname, '../../../logs');
+    this.logDir = path.join(process.cwd(), 'logs');
     this.logFile = path.join(this.logDir, 'error.log');
     this.ensureLogFileExists();
   }

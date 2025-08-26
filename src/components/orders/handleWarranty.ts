@@ -31,9 +31,6 @@ export async function handleWarranty(orderId: number, router: AppRouterInstance)
     return { ...res };
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to generate warranty';
-    console.log('handleInvoice error:', msg);
-    console.log('error:', error);
-
     return { error: true, message: msg };
   }
 }

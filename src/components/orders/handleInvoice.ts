@@ -32,9 +32,6 @@ export async function handleInvoice(orderId: number, router: AppRouterInstance) 
     return { ...res };
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to generate invoice';
-    console.log('handleInvoice error:', msg);
-    console.log('error:', error);
-
     return { error: true, message: msg };
   }
 }
