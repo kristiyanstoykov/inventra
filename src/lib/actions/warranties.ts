@@ -2,11 +2,12 @@
 
 import { AppError } from '../appError';
 import { logger } from '../logger';
-import { getOrderById } from '@/db/drizzle/queries/orders';
+import { getOrderById, OrderItemAgg } from '@/db/drizzle/queries/orders';
 import { getUserById } from '@/db/drizzle/queries/users';
 import { getOptionsFormRecords } from '@/db/drizzle/queries/options';
 import { buildWarrantyPdfStream } from '../pdf/warranty';
 import { generateRandomPassword } from '@/auth/core/passwordHasher';
+import { empty } from '../empty';
 
 export async function handleWarrantyAction(orderId: number) {
   try {
@@ -21,6 +22,20 @@ export async function handleWarrantyAction(orderId: number) {
     if (order instanceof AppError) {
       throw new Error(order.toString());
     }
+
+    // Right after fetching the order
+    const filteredItems = order.items.filter(
+      (item: OrderItemAgg) => typeof item.warranty === 'number' && item.warranty > 0
+    );
+
+    if (empty(filteredItems)) {
+      throw new Error(
+        `No items with a valid warranty were found for order #${orderId}. Unable to generate warranty PDF.`
+      );
+    }
+
+    // Replace the original items with the filtered list
+    order.items = filteredItems;
 
     const client = await getUserById(order.clientId);
     if (client instanceof AppError) {

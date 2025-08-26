@@ -11,10 +11,9 @@ import {
   decimal,
   longtext,
 } from 'drizzle-orm/mysql-core';
-import { _nullable } from 'zod/v4/core';
 
 /** ========== Enums ========== **/
-export const userRoles = ['admin', 'user', 'customer'] as const;
+export const userRoles = ['admin', 'user', 'client'] as const;
 export type UserRole = (typeof userRoles)[number];
 export function userRoleEnum() {
   return mysqlEnum('user_roles', userRoles);
@@ -112,7 +111,7 @@ export const ProductTable = mysqlTable('products', {
   price: decimal('price', { precision: 10, scale: 2 }).notNull().default('0.00'),
   salePrice: decimal('sale_price', { precision: 10, scale: 2 }),
   deliveryPrice: decimal('delivery_price', { precision: 10, scale: 2 }),
-  quantity: decimal('quantity', { precision: 10, scale: 2 }).default(''),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).default('0.0'),
   warranty: int().default(0),
   brandId: int('brand_id').references(() => ProductBrandTable.id),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
@@ -199,7 +198,7 @@ export const StockTable = mysqlTable('stock', {
   warehouseId: int('warehouse_id')
     .notNull()
     .references(() => WarehouseTable.id),
-  quantity: int('quantity').notNull().default(0),
+  quantity: int('quantity').notNull().default(0.0),
 });
 
 /** ========== Orders ========== **/
@@ -231,12 +230,13 @@ export const OrderItemTable = mysqlTable('order_items', {
   productId: int('product_id')
     .notNull()
     .references(() => ProductTable.id),
-  quantity: int('quantity').notNull().default(1),
+  quantity: int('quantity').notNull().default(1.0),
 
   // Same as product fields for convenience and keeping track of product info even if product's changed.
   name: varchar('name', { length: 255 }).notNull(),
   sku: varchar('sku', { length: 255 }),
   sn: varchar('sn', { length: 255 }), // serial number
+  warranty: int().default(0),
   price: decimal('price', { precision: 10, scale: 2 }).notNull().default('0.00'),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
@@ -273,23 +273,6 @@ export const OptionsTable = mysqlTable('options', {
 
 /** ========== Invoices ========== **/
 export const InvoicesTable = mysqlTable('invoices', {
-  id: int('id').autoincrement().primaryKey().notNull(),
-  orderId: int('order_id')
-    .notNull()
-    .unique()
-    .references(() => OrderTable.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-  fileUrl: varchar('file_url', { length: 255 }),
-  fileName: varchar('file_name', { length: 128 })
-    .notNull()
-    .$defaultFn(() => crypto.randomUUID()),
-  createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: datetime('updated_at')
-    .default(sql`CURRENT_TIMESTAMP`)
-    .$onUpdateFn(() => sql`CURRENT_TIMESTAMP`),
-});
-
-/** ========== Invoices ========== **/
-export const WarrantyTable = mysqlTable('warranties', {
   id: int('id').autoincrement().primaryKey().notNull(),
   orderId: int('order_id')
     .notNull()

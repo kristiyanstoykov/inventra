@@ -28,12 +28,13 @@ const orderColumnMap = {
 
 type SortableOrderColumn = keyof typeof orderColumnMap;
 
-type OrderItemAgg = {
+export type OrderItemAgg = {
   id: number;
   productId: number;
-  name: string | null; // ако колоната е nullable
+  name: string | null;
   quantity: number;
-  price: number | string; // внимавай: SUM/price може да идва като string от MySQL
+  price: number | string;
+  warranty: number | null;
 };
 type OrderRow = {
   id: number;
@@ -57,7 +58,7 @@ export async function getAllOrders(
   sortKey: SortableOrderColumn | null = null,
   sortDir: 'asc' | 'desc' = 'asc',
   search?: string
-): Promise<OrderRow[] | AppError> {
+) {
   try {
     const offset = (page - 1) * pageSize;
     await db.execute(sql`SET SESSION group_concat_max_len = 1000000`);
@@ -145,7 +146,7 @@ export async function getOrderById(id: number | string | Promise<number | string
     }
 
     await db.execute(sql`SET SESSION group_concat_max_len = 1000000`);
-    const itemsJson = sql<string>`
+    const itemsJson = sql<OrderItemAgg[]>`
       COALESCE(
         CAST(
           CONCAT(
@@ -157,7 +158,8 @@ export async function getOrderById(id: number | string | Promise<number | string
                 'name', ${OrderItemTable.name},
                 'sn', ${OrderItemTable.sn},
                 'quantity', ${OrderItemTable.quantity},
-                'price', ${OrderItemTable.price}
+                'price', ${OrderItemTable.price},
+                'warranty', ${OrderItemTable.warranty}
               )
               ORDER BY ${OrderItemTable.id} ASC
               SEPARATOR ','
@@ -499,6 +501,7 @@ export async function createOrder(data: z.infer<typeof OrderSchema>) {
           sku: ProductTable.sku,
           sn: ProductTable.sn,
           price: ProductTable.price,
+          warranty: ProductTable.warranty,
         })
         .from(ProductTable)
         .where(inArray(ProductTable.id, productIds));
@@ -518,6 +521,7 @@ export async function createOrder(data: z.infer<typeof OrderSchema>) {
             name: p.name,
             sku: p.sku ?? null,
             sn: p.sn ?? null,
+            warranty: p.warranty ?? 0,
             price:
               typeof p.price === 'string'
                 ? p.price

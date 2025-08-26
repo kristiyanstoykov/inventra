@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` RENAME COLUMN `user_roles` TO `user_roles_enum`;
