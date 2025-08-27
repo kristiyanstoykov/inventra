@@ -1,6 +1,6 @@
 import { db } from '@/db/drizzle/db';
 import { UserTable, UserRoleTable, RoleTable } from '@/db/drizzle/schema';
-import { eq, or, like, sql, desc, asc, inArray } from 'drizzle-orm';
+import { eq, and, gte, lt, or, like, sql, desc, asc, inArray } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
 import { empty } from '@/lib/empty';
@@ -8,11 +8,10 @@ import { hashPassword, generateSalt } from '@/auth/core/passwordHasher';
 import {
   addRoleToUser,
   deleteUserRoleIdByUserId,
-  getRoleById,
   getUserRoleIdByUserId,
   updateUserRole,
 } from './roles';
-// import { empty } from '@/lib/empty';
+import { startOfMonth, subMonths, addMonths, format } from 'date-fns';
 
 const columnMap = {
   id: UserTable.id,
@@ -463,5 +462,66 @@ export async function getUserByEmailAuth(email: string) {
   return {
     ...baseUser,
     role: roleNames,
+  };
+}
+
+type MonthlyClientsPoint = { monthKey: string; month: string; count: number };
+
+export async function getMonthlyNewClientsLast6(): Promise<{
+  data: MonthlyClientsPoint[];
+  thisMonth: number; // new clients this month
+  trendPct: number; // vs previous month
+}> {
+  const start = subMonths(startOfMonth(new Date()), 5);
+  const end = startOfMonth(addMonths(new Date(), 1));
+
+  // Fetch users that have role 'client' in the window
+  const rows = await db
+    .select({
+      userId: UserTable.id,
+      createdAt: UserTable.createdAt,
+    })
+    .from(UserTable)
+    .innerJoin(UserRoleTable, eq(UserRoleTable.userId, UserTable.id))
+    .innerJoin(RoleTable, eq(RoleTable.id, UserRoleTable.roleId))
+    .where(
+      and(
+        eq(RoleTable.name, 'client'),
+        gte(UserTable.createdAt, start),
+        lt(UserTable.createdAt, end)
+      )
+    );
+
+  // Buckets for last 6 months + current
+  const buckets = new Map<string, MonthlyClientsPoint>();
+  for (let d = new Date(start); d < end; d = addMonths(d, 1)) {
+    const key = format(d, 'yyyy-MM');
+    buckets.set(key, { monthKey: key, month: format(d, 'LLL'), count: 0 });
+  }
+
+  // Aggregate
+  const seen = new Set<number>(); // optional per-user dedupe per month if needed
+  for (const r of rows) {
+    const key = format(r.createdAt!, 'yyyy-MM');
+    const b = buckets.get(key);
+    if (!b) continue;
+
+    // If a user might appear multiple times due to multiple role rows in the same month:
+    const dedupeKey = Number(`${r.userId}${key.replace('-', '')}`);
+    if (!seen.has(dedupeKey)) {
+      b.count += 1;
+      seen.add(dedupeKey);
+    }
+  }
+
+  const data = Array.from(buckets.values());
+  const thisMonth = data[data.length - 1]?.count ?? 0;
+  const prevMonth = data[data.length - 2]?.count ?? 0;
+  const trendPct = prevMonth ? ((thisMonth - prevMonth) / prevMonth) * 100 : 0;
+
+  return {
+    data,
+    thisMonth,
+    trendPct: Number(trendPct.toFixed(2)),
   };
 }

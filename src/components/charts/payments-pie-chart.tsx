@@ -1,7 +1,8 @@
+import { getPaymentUsageAllTime } from '@/db/drizzle/queries/orders';
 import { ClientPaymentsPieChart } from './payments-pie-chart-client';
 
-export async function PaymentsPieChart({ time }: { time: number }) {
-  await new Promise((resolve) => setTimeout(resolve, time));
+export async function PaymentsPieChart() {
+  const result = await getPaymentUsageAllTime();
 
-  return <ClientPaymentsPieChart />;
+  return <ClientPaymentsPieChart data={result} />;
 }

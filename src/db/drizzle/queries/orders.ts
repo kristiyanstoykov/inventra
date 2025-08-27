@@ -7,9 +7,8 @@ import {
   PaymentTypesTable,
   UserRoleTable,
   InvoicesTable,
-  WarrantyTable,
 } from '@/db/drizzle/schema';
-import { and, gte, eq, sql, or, like, desc, asc, inArray } from 'drizzle-orm';
+import { and, gte, eq, sql, or, like, desc, asc, inArray, lt } from 'drizzle-orm';
 import { AppError } from '@/lib/appError';
 import { logger } from '@/lib/logger';
 import { OrderSchema } from '@/lib/schema/orders';
@@ -17,6 +16,8 @@ import z from 'zod';
 import { empty } from '@/lib/empty';
 import { generateRandomPassword, generateSalt, hashPassword } from '@/auth/core/passwordHasher';
 import { getRoleById } from './roles';
+import { startOfMonth, subMonths, addMonths, format } from 'date-fns';
+import { OrderPaymentType } from '@/lib/schema/order-payment-type';
 
 // Map for sortable columns in orders
 const orderColumnMap = {
@@ -784,4 +785,101 @@ export async function deleteOrder(id: number) {
     logger.logError(error, 'Repository: deleteOrder');
     return new AppError(error.message || 'Failed to delete order', 'DELETE_FAILED');
   }
+}
+
+export type MonthlyPoint = { monthKey: string; month: string; revenue: number; profit: number };
+
+export async function getMonthlyRevenueProfitLast6(): Promise<{
+  data: MonthlyPoint[];
+  thisMonth: number; // profit this month
+  trendPct: number; // vs previous month
+}> {
+  const start = subMonths(startOfMonth(new Date()), 5);
+  const end = startOfMonth(addMonths(new Date(), 1));
+
+  const rows = await db
+    .select({
+      createdAt: OrderTable.createdAt,
+      price: OrderItemTable.price, // DECIMAL -> string
+      qty: OrderItemTable.quantity,
+      cost: OrderItemTable.deliveryPrice, // <-- now comes from order_items
+    })
+    .from(OrderItemTable)
+    .innerJoin(OrderTable, eq(OrderItemTable.orderId, OrderTable.id))
+    .where(
+      and(
+        eq(OrderTable.status, 'completed'),
+        gte(OrderTable.createdAt, start),
+        lt(OrderTable.createdAt, end)
+      )
+    );
+
+  // Pre-fill 6 months + current
+  const buckets = new Map<string, MonthlyPoint>();
+  for (let d = new Date(start); d < end; d = addMonths(d, 1)) {
+    const key = format(d, 'yyyy-MM');
+    buckets.set(key, { monthKey: key, month: format(d, 'LLL'), revenue: 0, profit: 0 });
+  }
+
+  // Aggregate in JS
+  for (const r of rows) {
+    const key = format(r.createdAt!, 'yyyy-MM');
+    const b = buckets.get(key);
+    if (!b) continue;
+
+    const price = Number(r.price ?? 0);
+    const qty = Number(r.qty ?? 0);
+    const cost = Number(r.cost ?? 0); // per-line cost from order_items
+
+    b.revenue += price * qty;
+    b.profit += (price - cost) * qty;
+  }
+
+  const data = Array.from(buckets.values());
+  const thisMonth = data[data.length - 1]?.profit ?? 0;
+  const prevMonth = data[data.length - 2]?.profit ?? 0;
+  const trendPct = prevMonth ? ((thisMonth - prevMonth) / prevMonth) * 100 : 0;
+
+  return {
+    data: data.map((d) => ({
+      ...d,
+      revenue: Number(d.revenue.toFixed(2)),
+      profit: Number(d.profit.toFixed(2)),
+    })),
+    thisMonth: Number(thisMonth.toFixed(2)),
+    trendPct: Number(trendPct.toFixed(2)),
+  };
+}
+
+export type PaymentUsagePoint = {
+  paymentType: OrderPaymentType; // 'cash' | 'card'
+  usage: number;
+  fill: string; // Pie chart sector
+};
+
+export async function getPaymentUsageAllTime(): Promise<PaymentUsagePoint[]> {
+  const rows = await db
+    .select({
+      paymentType: PaymentTypesTable.name,
+      usage: sql<number>`COUNT(*)`,
+    })
+    .from(OrderTable)
+    .innerJoin(PaymentTypesTable, eq(OrderTable.paymentType, PaymentTypesTable.id))
+    .where(eq(OrderTable.status, 'completed'))
+    .groupBy(PaymentTypesTable.name);
+
+  const map = new Map<OrderPaymentType, number>([
+    ['cash', 0],
+    ['card', 0],
+  ]);
+
+  for (const r of rows) {
+    const key = r.paymentType as OrderPaymentType;
+    map.set(key, (map.get(key) ?? 0) + Number(r.usage ?? 0));
+  }
+
+  return [
+    { paymentType: 'cash', usage: map.get('cash')!, fill: 'var(--color-cash)' },
+    { paymentType: 'card', usage: map.get('card')!, fill: 'var(--color-card)' },
+  ];
 }

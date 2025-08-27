@@ -1,9 +1,8 @@
 import { getCurrentUser } from '@/auth/nextjs/currentUser';
 import { SkeletonChart6Months } from '@/components/charts/chart-6-months-skeleton';
-import { NewUsersChart6Months } from '@/components/charts/new-users-chart-6-months';
 import { PaymentsPieChart } from '@/components/charts/payments-pie-chart';
 import { ProfitsChart6Months } from '@/components/charts/profits-chart-6-months';
-import { ClientTopSellingProductsDualChart } from '@/components/charts/top-selling-products-dual-chart-client';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
 import { AppError } from '@/lib/appError';
@@ -19,13 +18,13 @@ export const metadata: Metadata = {
 /* TODO charts
   Row 1:
    - [x] Total Sales this month - Card with number similar to the bar chart and var chart at the bottom with previous months
-   - [x] New clients this month - same as above
+   - [ ] New clients this month - same as above
 
   Row 2:
-   - [ ] Top 3 Selling Products ever
-   - [ ] Low Stock products (orange) - list format product name and sku or sn
-   - [ ] Out of Stock products (red) - list format product name and sku or sn
-   - [ ] Payment Methods usage (cash/card) - Pie chart
+   - Top 3 Selling Products ever
+   - Low Stock products (orange) - list format product name and sku or sn
+   - Out of Stock products (red) - list format product name and sku or sn
+   - Payment Methods usage (cash/card) - Pie chart
 */
 export default async function AdminPage() {
   const user = await getCurrentUser({ withFullUser: true, redirectIfNotFound: true });
@@ -57,18 +56,12 @@ export default async function AdminPage() {
         <Suspense fallback={<SkeletonChart6Months />}>
           <ProfitsChart6Months />
         </Suspense>
-        <Suspense fallback={<SkeletonChart6Months />}>
-          <NewUsersChart6Months />
-        </Suspense>
-        <Suspense fallback={<SkeletonChart6Months />}>
-          <PaymentsPieChart />
-        </Suspense>
       </div>
       <Separator className="my-4" />
       <div className="flex flex-row gap-4">
-        <div className="flex flex-col">
-          <ClientTopSellingProductsDualChart />
-        </div>
+        <Suspense fallback={<SkeletonChart6Months />}>
+          <PaymentsPieChart time={2000} />
+        </Suspense>
       </div>
     </div>
   );

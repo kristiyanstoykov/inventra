@@ -218,6 +218,13 @@
       "when": 1756215232476,
       "tag": "0030_soft_killmonger",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1756278098351,
+      "tag": "0031_lumpy_oracle",
+      "breakpoints": true
     }
   ]
 }

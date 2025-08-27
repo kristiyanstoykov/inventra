@@ -238,6 +238,7 @@ export const OrderItemTable = mysqlTable('order_items', {
   sn: varchar('sn', { length: 255 }), // serial number
   warranty: int().default(0),
   price: decimal('price', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  deliveryPrice: decimal('delivery_price', { precision: 10, scale: 2 }),
   createdAt: datetime('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
 

@@ -20,11 +20,11 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function SkeletonProfitsChart6Months() {
+export function SkeletonChart6Months() {
   const barHeights = [0.7, 0.95, 0.8, 0.35, 0.78, 0.82];
 
   return (
-    <Card aria-busy aria-live="polite">
+    <Card className="min-w-[150px] w-[350px]" aria-busy aria-live="polite">
       <CardHeader>
         <CardTitle>
           <Skeleton className="h-5 w-40" />

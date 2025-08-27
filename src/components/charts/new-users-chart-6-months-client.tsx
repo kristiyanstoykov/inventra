@@ -17,34 +17,31 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { getMonthlyRevenueProfitLast6 } from '@/db/drizzle/queries/orders';
+import { getMonthlyNewClientsLast6 } from '@/db/drizzle/queries/users';
 
 export const description = 'A bar chart with a label';
 
 const chartConfig = {
-  profit: {
-    label: 'Profit',
+  count: {
+    label: 'Count',
     color: 'var(--chart-1)',
   },
 } satisfies ChartConfig;
 
-export function ClientProfitsChart6Months({
+export function ClientNewUsersChart6Months({
   data,
   thisMonth,
   trendPct,
-}: Awaited<ReturnType<typeof getMonthlyRevenueProfitLast6>>) {
+}: Awaited<ReturnType<typeof getMonthlyNewClientsLast6>>) {
   const chartData = data;
 
   return (
     <Card className="min-w-[150px] w-[350px] justify-around">
       <CardHeader>
-        <CardTitle className="flex flex-row">Profits</CardTitle>
+        <CardTitle className="flex flex-row">New users</CardTitle>
         <CardDescription className="flex flex-row items-center">
           This month{' '}
-          <span className="ms-1 flex flex-row items-center font-bold">
-            <Euro className="h-3 w-3" />
-            {thisMonth}
-          </span>
+          <span className="ms-1 flex flex-row items-center font-bold">{thisMonth} new users</span>
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -65,7 +62,7 @@ export function ClientProfitsChart6Months({
               tickFormatter={(value) => value.slice(0, 3)}
             />
             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-            <Bar dataKey="profit" fill="var(--primary)" radius={8}>
+            <Bar dataKey="count" fill="var(--chart-3)" radius={8}>
               <LabelList position="top" offset={12} className="fill-foreground" fontSize={12} />
             </Bar>
           </BarChart>
@@ -76,7 +73,7 @@ export function ClientProfitsChart6Months({
           Trending up by {trendPct}% this month <TrendingUp className="h-4 w-4" />
         </div>
         <div className="text-muted-foreground leading-none">
-          Showing total profits for the last 6 months
+          Showing total new user count for the last 6 months
         </div>
       </CardFooter>
     </Card>
