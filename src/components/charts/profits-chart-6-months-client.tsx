@@ -18,6 +18,7 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { getMonthlyRevenueProfitLast6 } from '@/db/drizzle/queries/orders';
+import { Separator } from '../ui/separator';
 
 export const description = 'A bar chart with a label';
 

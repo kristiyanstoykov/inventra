@@ -1,6 +1,8 @@
 import { getCurrentUser } from '@/auth/nextjs/currentUser';
 import { SkeletonChart6Months } from '@/components/charts/chart-6-months-skeleton';
+import { LowOnStockProductsCard } from '@/components/charts/low-on-stock-products-card';
 import { NewUsersChart6Months } from '@/components/charts/new-users-chart-6-months';
+import { OutOfStockProductsCard } from '@/components/charts/out-of-stock-products-card';
 import { PaymentsPieChart } from '@/components/charts/payments-pie-chart';
 import { ProfitsChart6Months } from '@/components/charts/profits-chart-6-months';
 import { ClientTopSellingProductsDualChart } from '@/components/charts/top-selling-products-dual-chart-client';
@@ -28,6 +30,14 @@ export const metadata: Metadata = {
    - [ ] Payment Methods usage (cash/card) - Pie chart
 */
 export default async function AdminPage() {
+  const mockItems = [
+    { productId: 101, name: 'Wireless Mouse', sku: 'WM-101', qty: 0 },
+    { productId: 102, name: 'Mechanical Keyboard RGB Cherry MX Brown', sku: 'KB-102', qty: 0 },
+    { productId: 103, name: '27" 4K Monitor UltraSharp', sku: 'MON-103', qty: 0 },
+    { productId: 103, name: '27" 4K Monitor UltraSharp', sku: 'MON-103', qty: 0 },
+    { productId: 103, name: '27" 4K Monitor UltraSharp', sku: 'MON-103', qty: 0 },
+    { productId: 103, name: '27" 4K Monitor UltraSharp', sku: 'MON-103', qty: 0 },
+  ];
   const user = await getCurrentUser({ withFullUser: true, redirectIfNotFound: true });
   if (user instanceof AppError) {
     throw user;
@@ -38,7 +48,7 @@ export default async function AdminPage() {
       <Heading size={'h2'} as={'h1'} className="text-4xl mb-8">
         Welcome to <span className="text-primary font-semibold">Inventra</span>, {user.firstName}.
       </Heading>
-      <div className="flex flex-row flex-wrap row-auto gap-4">
+      <div className="flex flex-row flex-wrap gap-4">
         <Button asChild variant="default" size="lg">
           <Link href="/admin/products">Manage Products</Link>
         </Button>
@@ -53,7 +63,7 @@ export default async function AdminPage() {
         </Button>
       </div>
       <Separator className="border border-t-1 my-4" />
-      <div className="flex flex-row flex-wrap row-auto gap-4">
+      <div className="flex flex-row flex-wrap gap-4">
         <Suspense fallback={<SkeletonChart6Months />}>
           <ProfitsChart6Months />
         </Suspense>
@@ -65,10 +75,10 @@ export default async function AdminPage() {
         </Suspense>
       </div>
       <Separator className="my-4" />
-      <div className="flex flex-row gap-4">
-        <div className="flex flex-col">
-          <ClientTopSellingProductsDualChart />
-        </div>
+      <div className="flex flex-row flex-wrap gap-4">
+        <ClientTopSellingProductsDualChart />
+        <LowOnStockProductsCard threshold={5} />
+        <OutOfStockProductsCard />
       </div>
     </div>
   );

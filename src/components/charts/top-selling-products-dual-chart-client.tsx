@@ -93,23 +93,24 @@ export function ClientTopSellingProductsDualChart() {
       ) : (
         <Card className="min-w-[150px] w-[350px]">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <ToggleGroup
-                type="single"
-                value={metric}
-                onValueChange={handleMetricChange}
-                className="justify-end"
-              >
-                <ToggleGroupItem value="quantity" aria-label="By quantity">
-                  Quantity
-                </ToggleGroupItem>
-                <ToggleGroupItem value="revenue" aria-label="By revenue">
-                  Revenue
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </div>
             <CardTitle>Top selling products this month</CardTitle>
-            <CardDescription>{desc}</CardDescription>
+            <CardDescription>
+              <div className="flex items-center justify-between">
+                <ToggleGroup
+                  type="single"
+                  value={metric}
+                  onValueChange={handleMetricChange}
+                  className="justify-end"
+                >
+                  <ToggleGroupItem value="quantity" aria-label="By quantity">
+                    Quantity
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="revenue" aria-label="By revenue">
+                    Revenue
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+            </CardDescription>
           </CardHeader>
 
           <CardContent>

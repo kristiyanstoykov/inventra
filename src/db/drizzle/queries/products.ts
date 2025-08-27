@@ -660,6 +660,51 @@ export async function getProductsBySearch(search: string) {
       attributes: attributesByProductId[product.id] || {},
     }));
   } catch (error) {
-    return new AppError(error.message || 'Failed to fetch products by serial number');
+    logger.logError(error, 'Repository: getOutOfStockProducts');
+    const message =
+      error instanceof Error ? error.message : 'Failed to fetch products by serial number';
+    return new AppError(message);
+  }
+}
+
+export async function getOutOfStockProducts() {
+  try {
+    const products = await db
+      .select()
+      .from(ProductTable)
+      .where(sql`${ProductTable.quantity} = 0`);
+
+    if (empty(products)) {
+      return null;
+    }
+
+    // Combine results
+    return products;
+  } catch (error) {
+    logger.logError(error, 'Repository: getOutOfStockProducts');
+    const message =
+      error instanceof Error ? error.message : 'Failed to fetch out of stock products';
+    return new AppError(message);
+  }
+}
+
+export async function getLowOnStockProducts(threshold: number) {
+  try {
+    const products = await db
+      .select()
+      .from(ProductTable)
+      .where(and(sql`${ProductTable.quantity} > 0`, sql`${ProductTable.quantity} <= ${threshold}`));
+
+    if (empty(products)) {
+      return null;
+    }
+
+    // Combine results
+    return products;
+  } catch (error) {
+    logger.logError(error, 'Repository: getLowOnStockProducts');
+    const message =
+      error instanceof Error ? error.message : 'Failed to fetch low on stock products';
+    return new AppError(message);
   }
 }
