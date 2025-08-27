@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { signInSchema } from '../schemas';
 import { useRouter } from 'next/navigation';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 export function SignInForm() {
   const router = useRouter();
@@ -69,7 +70,9 @@ export function SignInForm() {
           )}
         />
         <div className="flex gap-4 justify-end">
-          <Button type="submit">Sign In</Button>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? <LoadingSpinner /> : 'Sign In'}
+          </Button>
         </div>
       </form>
     </Form>

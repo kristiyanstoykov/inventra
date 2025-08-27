@@ -21,14 +21,10 @@ import {
 import Link from 'next/link';
 import { useState } from 'react';
 import { Button } from '../ui/button';
+import { InferSelectModel } from 'drizzle-orm';
+import { UserTable } from '@/db/drizzle/schema';
 
-type User = {
-  id: number;
-  email: string;
-  role: string;
-  firstName: string | null;
-  lastName: string | null;
-};
+type User = InferSelectModel<typeof UserTable>;
 
 export function SidebarUserButtonClient({ user }: { user: User }) {
   const [, setIsLoggingOut] = useState(false);
@@ -64,15 +60,13 @@ export function SidebarUserButtonClient({ user }: { user: User }) {
           <UserInfo {...user} />
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => {
-            setOpenMobile(false);
-          }}
-        >
-          <UserIcon className="mr-1" /> Profile
+        <DropdownMenuItem asChild>
+          <Link href={`/admin/users/edit/${user.id}`}>
+            <UserIcon className="mr-1" /> Profile
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/user-settings/notifications">
+          <Link href="/admin/settings">
             <SettingsIcon className="mr-1" /> Settings
           </Link>
         </DropdownMenuItem>

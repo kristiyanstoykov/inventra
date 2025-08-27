@@ -14,16 +14,15 @@ export function SidebarUserButton() {
 }
 
 async function SidebarUserSuspense() {
-  let user = await getCurrentUser({ withFullUser: true });
+  const user = await getCurrentUser({ withFullUser: true });
 
-  if (!user) {
-    user = {
-      id: 1,
-      email: 'bob@abv.bg',
-      firstName: 'Bob',
-      lastName: 'Bobov',
-      role: 'admin',
-    };
+  if (user instanceof Error) {
+    return (
+      <SidebarMenuButton>
+        <LogOutIcon />
+        <span>Log Out</span>
+      </SidebarMenuButton>
+    );
   }
 
   if (user == null) {
