@@ -1,4 +1,4 @@
-import { drizzle } from 'drizzle-orm/mysql2';
+import { drizzle, MySql2Database } from 'drizzle-orm/mysql2';
 import mysql, { Pool } from 'mysql2/promise';
 import * as schema from './schema';
 import dotenv from 'dotenv';
@@ -39,12 +39,8 @@ const _db =
     mode: 'default',
   });
 
-if (process.env.NODE_ENV !== 'production') {
-  global.__drizzle_pool__ = pool;
-  global.__drizzle_db__ = _db;
-}
-
-export const db = _db;
+export const db =
+  global.__drizzle_db__ ?? (_db as MySql2Database<typeof schema> & { $client: mysql.Pool });
 
 // (optional) graceful shutdown in scripts, not needed in Next.js usually
 process.on('SIGINT', async () => {
