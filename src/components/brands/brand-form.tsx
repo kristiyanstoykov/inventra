@@ -49,7 +49,7 @@ export function BrandForm({ brand }: { brand: Pick<BrandType, 'id' | 'name' | 'w
       if (!brand) {
         form.reset();
         toast.success('Attribute added successfully');
-        router.push(`/brands/edit/${res.attributeId}`);
+        router.push(`brands/edit/${res.attributeId}`);
       } else {
         toast.success('Attribute updated successfully');
         router.refresh();
