@@ -485,7 +485,7 @@ export async function getMonthlyNewClientsLast6(): Promise<{
     .innerJoin(UserRoleTable, eq(UserRoleTable.userId, UserTable.id))
     .innerJoin(RoleTable, eq(RoleTable.id, UserRoleTable.roleId))
     .where(
-      and(
+      or(
         eq(RoleTable.name, 'client'),
         gte(UserTable.createdAt, start),
         lt(UserTable.createdAt, end)
