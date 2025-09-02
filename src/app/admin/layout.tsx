@@ -9,7 +9,6 @@ import {
   ListCheck,
   Tag,
   Settings,
-  ReceiptEuro,
 } from 'lucide-react';
 import { AppSidebar } from '@/components/sidebar/AppSidebar';
 import { SidebarNavMenuGroup } from '@/components/sidebar/SidebarNavMenuGroups';

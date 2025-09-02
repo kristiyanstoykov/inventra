@@ -24,20 +24,12 @@ export const metadata: Metadata = {
    - [x] New clients this month - same as above
 
   Row 2:
-   - [ ] Top 3 Selling Products ever
-   - [ ] Low Stock products (orange) - list format product name and sku or sn
-   - [ ] Out of Stock products (red) - list format product name and sku or sn
-   - [ ] Payment Methods usage (cash/card) - Pie chart
+   - [x] Top 3 Selling Products ever
+   - [x] Low Stock products (orange) - list format product name and sku or sn
+   - [x] Out of Stock products (red) - list format product name and sku or sn
+   - [x] Payment Methods usage (cash/card) - Pie chart
 */
 export default async function AdminPage() {
-  const mockItems = [
-    { productId: 101, name: 'Wireless Mouse', sku: 'WM-101', qty: 0 },
-    { productId: 102, name: 'Mechanical Keyboard RGB Cherry MX Brown', sku: 'KB-102', qty: 0 },
-    { productId: 103, name: '27" 4K Monitor UltraSharp', sku: 'MON-103', qty: 0 },
-    { productId: 103, name: '27" 4K Monitor UltraSharp', sku: 'MON-103', qty: 0 },
-    { productId: 103, name: '27" 4K Monitor UltraSharp', sku: 'MON-103', qty: 0 },
-    { productId: 103, name: '27" 4K Monitor UltraSharp', sku: 'MON-103', qty: 0 },
-  ];
   const user = await getCurrentUser({ withFullUser: true, redirectIfNotFound: true });
   if (user instanceof AppError) {
     throw user;

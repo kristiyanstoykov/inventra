@@ -23,6 +23,7 @@ import { useState } from 'react';
 import { Button } from '../ui/button';
 import { InferSelectModel } from 'drizzle-orm';
 import { UserTable } from '@/db/drizzle/schema';
+import { ThemeToggleButton } from '../ui/themeToggleButton';
 
 type User = InferSelectModel<typeof UserTable>;
 
@@ -56,8 +57,9 @@ export function SidebarUserButtonClient({ user }: { user: User }) {
         side={isMobile ? 'bottom' : 'right'}
         className="min-w-64 max-w-80"
       >
-        <DropdownMenuLabel className="font-normal p-1">
+        <DropdownMenuLabel className="flex flex-row flex-nowrap gap-2 justify-between font-normal p-1">
           <UserInfo {...user} />
+          <ThemeToggleButton />
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
