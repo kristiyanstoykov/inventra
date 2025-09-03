@@ -200,6 +200,7 @@ export default function CompanySettingsForm({ options }: { options: OptionsFormV
                       </div>
                     ) : preview ? (
                       <Image
+                        unoptimized
                         src={preview}
                         alt="Logo preview"
                         className="w-64 rounded-md border"
