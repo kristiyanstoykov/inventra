@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Inventra – Warehouse Management System
 
-## Getting Started
+**Inventra** is a modern web-based warehouse management application designed to overcome the limitations of outdated inventory systems like Zeron, Microinvest, and Gensoft.
+The goal is to provide a **simple, intuitive, and mobile-friendly** interface for managing products, stock, and orders, with built-in support for generating invoices and warranty cards.
 
-First, run the development server:
+---
 
+## 🚀 Tech Stack
+- **Next.js 15.5** (React 19, TypeScript 5)
+- **Tailwind CSS 4 + shadcn/ui (Radix UI components)**
+- **MySQL 8.0+** as the database
+- **Drizzle ORM 0.44** for type-safe queries and migrations
+- **pdfkit 0.17** for PDF invoice and warranty card generation
+
+---
+
+## 📦 Features
+- **Dashboard** with KPIs (profits, clients, payments, low/out of stock products)
+- **Product Management** (CRUD with attributes, brands, categories)
+- **Order Management** with status, payment type, and document generation
+- **Automatic PDF Invoices & Warranty Cards** (stored in `/uploads/invoices`)
+- **User Management** with roles (`admin`, `user`, `client`)
+- **Responsive Design** – works on desktop and mobile devices
+- **Secure Authentication** – hashed passwords and 4-hour session tokens
+
+---
+
+## ⚙️ Requirements
+- **CPU:** min. 2 vCPU (Intel i3-8100 / AMD Ryzen 3 1200 or equivalent)
+- **RAM:** 2 GB
+- **Disk:** 5 GB free (code + database + uploads)
+- **Node.js:** LTS 20.x
+- **MySQL:** 8.0+
+- Works on **Windows 11** or **Linux (Ubuntu/Debian)**
+
+---
+
+## 🔧 Setup
 ```bash
+# Clone repository
+git clone https://github.com/your-org/inventra.git
+cd inventra
+
+# Install dependencies
+npm install
+
+# Configure environment
+cp .env.example .env
+# Add DB credentials and ENCRYPT_SECRET
+
+# Run database migrations and seeds
+npm run db:migrate
+npm run db:seed
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
