@@ -2,7 +2,7 @@
 
 This project was developed as part of a **diploma thesis in Computer and Software Engineering at the Technical University of Sofia**.
 
-**Inventra** is a modern web-based warehouse management application designed to overcome the limitations of outdated inventory systems like Zeron, Microinvest, and Gensoft.
+**Inventra** is a modern web-based warehouse management application designed to overcome the limitations of outdated inventory systems.
 The goal is to provide a **simple, intuitive, and mobile-friendly** interface for managing products, stock, and orders, with built-in support for generating invoices and warranty cards.
 
 ---
