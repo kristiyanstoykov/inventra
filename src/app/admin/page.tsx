@@ -18,17 +18,6 @@ export const metadata: Metadata = {
   title: 'Dashboard',
 };
 
-/* TODO charts
-  Row 1:
-   - [x] Total Sales this month - Card with number similar to the bar chart and var chart at the bottom with previous months
-   - [x] New clients this month - same as above
-
-  Row 2:
-   - [x] Top 3 Selling Products ever
-   - [x] Low Stock products (orange) - list format product name and sku or sn
-   - [x] Out of Stock products (red) - list format product name and sku or sn
-   - [x] Payment Methods usage (cash/card) - Pie chart
-*/
 export default async function AdminPage() {
   const user = await getCurrentUser({ withFullUser: true, redirectIfNotFound: true });
   if (user instanceof AppError) {
