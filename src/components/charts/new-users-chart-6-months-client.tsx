@@ -70,7 +70,20 @@ export function ClientNewUsersChart6Months({
       </CardContent>
       <CardFooter className="flex-col items-start gap-2 text-sm">
         <div className="flex gap-2 leading-none font-medium">
-          Trending up by {trendPct}% this month <TrendingUp className="h-4 w-4" />
+          {trendPct === 0
+            ? 'No change this month'
+            : `Users ${trendPct > 0 ? 'up' : 'down'} by ${Math.abs(trendPct)}% this month`}
+              <TrendingUp
+                className={`h-4 w-4
+                  ${
+                    trendPct > 0
+                    ? 'text-green-600'
+                    : trendPct < 0
+                    ? 'rotate-180 text-red-600'
+                    : 'text-muted-foreground'
+                  }`
+                }
+              />
         </div>
         <div className="text-muted-foreground leading-none">
           Showing total new user count for the last 6 months

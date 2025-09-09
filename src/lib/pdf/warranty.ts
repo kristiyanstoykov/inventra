@@ -166,7 +166,7 @@ async function generateWarrantyHeader(
   if (company.logo) {
     try {
       const logoBuf = await loadImageForPdf(company.logo);
-      doc.image(logoBuf, 50, layout.y.headerTop, { width: 120 });
+      doc.image(logoBuf, 50, layout.y.headerTop, { width: 60 });
     } catch {
       /* ignore */
     }

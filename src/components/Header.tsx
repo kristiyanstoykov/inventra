@@ -4,7 +4,7 @@ import { ThemeToggleButton } from './ui/themeToggleButton';
 
 const Header: React.FC = () => {
   return (
-    <header className="flex items-center border-b border-l border-border bg-sidebar py-2 px-5 transition-colors">
+    <header className="flex items-center border-b border-l border-border bg-sidebar py-2 px-5 transition-colors hidden md:block">
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center">
           <Image

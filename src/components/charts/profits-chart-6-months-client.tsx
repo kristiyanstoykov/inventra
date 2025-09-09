@@ -18,7 +18,6 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { getMonthlyRevenueProfitLast6 } from '@/db/drizzle/queries/orders';
-import { Separator } from '../ui/separator';
 
 export const description = 'A bar chart with a label';
 
@@ -74,7 +73,8 @@ export function ClientProfitsChart6Months({
       </CardContent>
       <CardFooter className="flex-col items-start gap-2 text-sm">
         <div className="flex gap-2 leading-none font-medium">
-          Trending up by {trendPct}% this month <TrendingUp className="h-4 w-4" />
+          Profits {trendPct >= 0 ? 'up' : 'down'} by {Math.abs(trendPct)}% this month{' '}
+          <TrendingUp className={`h-4 w-4 ${trendPct >= 0 ? 'text-green-600' : 'rotate-180 text-red-600'}`} />
         </div>
         <div className="text-muted-foreground leading-none">
           Showing total profits for the last 6 months

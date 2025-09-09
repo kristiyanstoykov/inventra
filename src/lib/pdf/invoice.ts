@@ -239,7 +239,7 @@ async function generateInvoiceHeader(
   // Logo
   try {
     const logoBuf = await loadImageForPdf(company.logo);
-    doc.image(logoBuf, 50, layout.y.headerLogoY, { width: 128 });
+    doc.image(logoBuf, 50, layout.y.headerLogoY, { width: 60 });
   } catch {
     // ignore
   }
@@ -579,27 +579,28 @@ function generateInvoiceFooter(
   order: Order,
   client: UserType
 ) {
-  // how much space we need until page end: payment/note + two signatures + legal text
-  const reserve =
-    18 /* payment */ +
-    (company.notes ? 28 : 0) +
-    layout.sign.blockHeight +
-    16 /* gap */ +
-    40; /* legal */
+  // // how much space we need until page end: payment/note + two signatures + legal text
+  // // TODO: change to order notes
+  // const reserve =
+  //   18 /* payment */ +
+  //   (company.notes ? 28 : 0) +
+  //   layout.sign.blockHeight +
+  //   16 /* gap */ +
+  //   40; /* legal */
 
-  ensureRoom(doc, reserve, 0);
+  // ensureRoom(doc, reserve, 0);
 
-  // start of footer
+  // // start of footer
   const startY = Math.max(doc.y, layout.y.footerTopMin);
-
-  // Notes (if any) – show the actual text
+  // // Notes (if any) – show the actual text
   let y = doc.y + 6;
-  if (company.notes) {
-    doc.fontSize(10).text('Бележка:', 50, y, { width: 500, align: 'left' });
-    y = doc.y + 2;
-    doc.fontSize(9).text(company.notes, 50, y, { width: 500, align: 'left' });
-    y = doc.y + 10;
-  }
+
+  // if (company.notes) {
+  //   doc.fontSize(10).text('Бележка:', 50, y, { width: 500, align: 'left' });
+  //   y = doc.y + 2;
+  //   doc.fontSize(9).text(company.notes, 50, y, { width: 500, align: 'left' });
+  //   y = doc.y + 10;
+  // }
 
   // Signatures – two blocks side by side
   const leftName = client.isCompany

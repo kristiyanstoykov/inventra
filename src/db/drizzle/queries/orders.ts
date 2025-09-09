@@ -800,14 +800,14 @@ export async function getMonthlyRevenueProfitLast6(): Promise<{
   const rows = await db
     .select({
       createdAt: OrderTable.createdAt,
-      price: OrderItemTable.price, // DECIMAL -> string
+      price: OrderItemTable.price,
       qty: OrderItemTable.quantity,
-      cost: OrderItemTable.deliveryPrice, // <-- now comes from order_items
+      cost: OrderItemTable.deliveryPrice,
     })
     .from(OrderItemTable)
     .innerJoin(OrderTable, eq(OrderItemTable.orderId, OrderTable.id))
     .where(
-      and(
+      or(
         eq(OrderTable.status, 'completed'),
         gte(OrderTable.createdAt, start),
         lt(OrderTable.createdAt, end)
@@ -879,7 +879,7 @@ export async function getPaymentUsageAllTime(): Promise<PaymentUsagePoint[]> {
   }
 
   return [
-    { paymentType: 'cash', usage: map.get('cash')!, fill: 'var(--color-cash)' },
-    { paymentType: 'card', usage: map.get('card')!, fill: 'var(--color-card)' },
+    { paymentType: 'cash', usage: map.get('cash')!, fill: 'var(--primary)' },
+    { paymentType: 'card', usage: map.get('card')!, fill: 'var(--chart-3)' },
   ];
 }
