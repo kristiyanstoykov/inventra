@@ -1,0 +1,1 @@
+ALTER TABLE `orders` MODIFY COLUMN `payment_type_id` int;

@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import Header from '@/components/Header';
 import { ThemeScript } from '@/lib/themeScript';
+import { Suspense } from 'react';
+import { Toaster } from '@/components/ui/sonner';
+import { ThemeProvider } from '@/components/ui/theme-provider';
 
 export const metadata: Metadata = {
   title: 'Create Next App',
@@ -14,14 +16,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning={true}>
-      <head>
-        <ThemeScript />
-      </head>
-      <body className="">
-        <Header />
-        {children}
-      </body>
-    </html>
+    <Suspense>
+      <html lang="en" suppressHydrationWarning={true}>
+        <head>
+          <ThemeScript />
+        </head>
+        <body className="">
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <Toaster position="top-center" />
+            {/* <Header /> */}
+            {children}
+          </ThemeProvider>
+        </body>
+      </html>
+    </Suspense>
   );
 }

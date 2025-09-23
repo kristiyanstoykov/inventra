@@ -1,21 +1,27 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getUserFromSession } from './auth/core/session';
 
-export function middleware(request: NextRequest) {
-  const headers = new Headers(request.headers);
-  headers.set('x-current-path', request.nextUrl.pathname);
+export const config = {
+  runtime: 'nodejs', // Now stable!
+};
 
+export async function middleware(request: NextRequest) {
+  // Complex authentication logic
   const sessionId = request.cookies.get('session-id')?.value;
   const isAdminPath = request.nextUrl.pathname.startsWith('/admin');
 
+  // Redirect to 404 if user is not authenticated
   if (isAdminPath && !sessionId) {
-    // Redirect to 404 if user is not authenticated
-    return NextResponse.rewrite(new URL('/404', request.url));
+    // Store the intended destination in a cookie or URL parameter
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirectTo', request.nextUrl.pathname);
+    return NextResponse.rewrite(new URL('/', request.url));
   }
 
-  return NextResponse.next({ headers });
-}
+  const user = await getUserFromSession(request.cookies);
+  if (isAdminPath && (!user || user.role !== 'admin')) {
+    return NextResponse.redirect(new URL('404', request.url));
+  }
 
-export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
-};
+  return NextResponse.next();
+}

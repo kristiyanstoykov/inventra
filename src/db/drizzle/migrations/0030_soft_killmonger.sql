@@ -1,0 +1,1 @@
+ALTER TABLE `products` MODIFY COLUMN `quantity` decimal(10,2) DEFAULT '0.0';

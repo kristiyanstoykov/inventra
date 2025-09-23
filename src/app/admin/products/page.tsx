@@ -1,50 +1,87 @@
-import { DataTableSearchControls } from '@/components/ui/data-table/data-table-search-controls';
-import { ProductDataTable } from '../../../components/products/product-data-table';
+import { ProductsTable, SkeletonProductsTable } from '@/components/products/table';
 import { Heading } from '@/components/ui/heading';
 import { Suspense } from 'react';
-import { Loader2 } from 'lucide-react';
-import { DataTableSearchControlsClient } from '@/components/ui/data-table/data-table-search-controls-client';
+import { getPaginatedProducts } from '@/db/drizzle/queries/products';
+import { AppError } from '@/lib/appError';
+import { DataTableSearchClient } from '@/components/dataTable/DataTableSearchClient';
+import { Metadata } from 'next';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { PlusIcon } from 'lucide-react';
 
-export default async function ProductsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    page?: string;
-    sortKey?: string;
-    sortDir?: 'asc' | 'desc';
-    search?: string;
-  }>;
-}) {
+export const metadata: Metadata = {
+  title: 'All Products',
+};
+
+type SearchParams = Promise<{
+  page?: string;
+  sort?: `${string}.${'asc' | 'desc'}`;
+  search?: string;
+  perPage?: string;
+}>;
+
+export default async function ProductsPage({ searchParams }: { searchParams: SearchParams }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="m-4">
+          <Heading size={'h3'} as={'h1'} className="mb-4">
+            Products
+          </Heading>
+          <DataTableSearchClient />
+          <SkeletonProductsTable />
+        </div>
+      }
+    >
+      <SuspendedPage searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const stringParams = new URLSearchParams({ ...params }).toString();
-
-  const page = parseInt(params.page ?? '1', 10) || 1;
-  const sortKey = params.sortKey ?? 'createdAt';
-  const sortDir = params.sortDir === 'asc' ? 'asc' : 'desc';
+  const pageNum = parseInt(params.page ?? '1', 10) || 1;
+  const perPage = parseInt(params.perPage ?? '10', 10) || 10;
+  const [sortKey = 'id', sortDir = 'desc'] =
+    (params.sort?.split('.') as [string, 'asc' | 'desc']) ?? [];
   const search = params.search ?? '';
 
+  const result = await getPaginatedProducts(pageNum, perPage, sortKey, sortDir, search);
+  if (result instanceof AppError) {
+    return (
+      <div className="p-4">
+        <Heading size={'h3'} as={'h1'}>
+          Error loading products
+        </Heading>
+        <p>{result.message}</p>
+      </div>
+    );
+  }
+
+  const { data, total, page, pageSize, totalPages } = result;
+
   return (
-    <>
-      <Heading size={'h3'} as={'h1'}>
-        Products
-      </Heading>
-      <DataTableSearchControls search={search} queryParams={stringParams} />
-      {/* <DataTableSearchControlsClient /> */}
-      <Suspense
-        fallback={
-          <div className="p-4 flex">
-            Loading products...<Loader2 className="animate-spin"></Loader2>
-          </div>
-        }
-      >
-        <ProductDataTable
+    <div className="m-4 grid grid-cols-1 gap-4">
+      <div className="flex">
+        <Heading size={'h3'} as={'h1'} className="mb-4 mr-4">
+          Products
+        </Heading>
+        <Link href="products/new">
+          <Button variant={'addition'}>
+            <PlusIcon /> Add Product
+          </Button>
+        </Link>
+      </div>
+      <DataTableSearchClient />
+      <Suspense fallback={<SkeletonProductsTable />}>
+        <ProductsTable
+          products={data}
+          total={total}
           page={page}
-          sortKey={sortKey}
-          sortDirection={sortDir}
-          search={search}
-          queryParams={stringParams}
+          pageSize={pageSize}
+          totalPages={totalPages}
         />
       </Suspense>
-    </>
+    </div>
   );
 }

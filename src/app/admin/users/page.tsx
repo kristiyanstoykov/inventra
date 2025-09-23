@@ -1,58 +1,89 @@
-import { Button } from '@/components/ui/button';
-import { DataTableSearchControls } from '@/components/ui/data-table/data-table-search-controls';
 import { Heading } from '@/components/ui/heading';
-import { UsersDataTable } from '@/components/users/users-data-table';
-import { Loader2, Plus } from 'lucide-react';
-import Link from 'next/link';
 import { Suspense } from 'react';
+import { AppError } from '@/lib/appError';
+import { DataTableSearchClient } from '@/components/dataTable/DataTableSearchClient';
+import { Metadata } from 'next';
+import { getPaginatedUsers } from '@/db/drizzle/queries/users';
+import { SkeletonUsersTable, UsersTable } from '@/components/users/table';
+import { Button } from '@/components/ui/button';
+import { PlusIcon } from 'lucide-react';
+import Link from 'next/link';
 
-export default async function UsersPage({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    page?: string;
-    sortKey?: string;
-    sortDir?: 'asc' | 'desc';
-    search?: string;
-  }>;
-}) {
+export const metadata: Metadata = {
+  title: 'All Orders',
+};
+
+type SearchParams = Promise<{
+  page?: string;
+  sort?: `${string}.${'asc' | 'desc'}`;
+  search?: string;
+  perPage?: string;
+}>;
+
+export default function UsersPage({ searchParams }: { searchParams: SearchParams }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="m-4">
+          <Heading size={'h3'} as={'h1'} className="mb-4">
+            Users
+          </Heading>
+          <DataTableSearchClient />
+          <SkeletonUsersTable />
+        </div>
+      }
+    >
+      <SuspendedPage searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const stringParams = new URLSearchParams({ ...params }).toString();
-
-  const page = parseInt(params.page ?? '1', 10) || 1;
-  const sortKey = params.sortKey ?? 'createdAt';
-  const sortDir = params.sortDir === 'asc' ? 'asc' : 'desc';
+  const pageNum = parseInt(params.page ?? '1', 10) || 1;
+  const perPage = parseInt(params.perPage ?? '10', 10) || 10;
+  const [sortKey = 'id', sortDir = 'asc'] =
+    (params.sort?.split('.') as [string, 'asc' | 'desc']) ?? [];
   const search = params.search ?? '';
 
+  const result = await getPaginatedUsers(pageNum, perPage, sortKey, sortDir, search);
+  if (result instanceof AppError) {
+    return (
+      <div className="p-4">
+        <Heading size={'h3'} as={'h1'}>
+          Error loading users
+        </Heading>
+        <p>{result.message}</p>
+      </div>
+    );
+  }
+
+  const { data, total, page, pageSize, totalPages } = result;
+
   return (
-    <>
-      <div className="flex items-center gap-2 mb-3">
-        <Heading size={'h3'} as={'h1'} className="mr-4">
+    <div className="m-4">
+      <div className="flex">
+        <Heading size={'h3'} as={'h1'} className="mb-4 mr-4">
           Users
         </Heading>
-        <Link href="/admin/users/new">
-          <Button>
-            <Plus className="w-8 h-8" />
-            Add new user
+        <Link href="users/new">
+          <Button variant={'addition'}>
+            <PlusIcon /> Add User
           </Button>
         </Link>
       </div>
-      <DataTableSearchControls search={search} queryParams={stringParams} />
-      <Suspense
-        fallback={
-          <div className="p-4 flex">
-            Loading users...<Loader2 className="animate-spin"></Loader2>
-          </div>
-        }
-      >
-        <UsersDataTable
-          page={page}
-          sortKey={sortKey}
-          sortDirection={sortDir}
-          search={search}
-          queryParams={stringParams}
-        />
-      </Suspense>
-    </>
+      <div className="">
+        <DataTableSearchClient />
+        <Suspense fallback={<SkeletonUsersTable />}>
+          <UsersTable
+            users={data}
+            total={total}
+            page={page}
+            pageSize={pageSize}
+            totalPages={totalPages}
+          />
+        </Suspense>
+      </div>
+    </div>
   );
 }

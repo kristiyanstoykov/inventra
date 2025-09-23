@@ -13,6 +13,16 @@ export const env = createEnv({
     // GITHUB_CLIENT_ID: z.string().min(1),
     // GITHUB_CLIENT_SECRET: z.string().min(1),
   },
+  createFinalSchema: (env: Record<string, z.ZodTypeAny>) => {
+    return z.object(env).transform((val) => {
+      const { DB_HOST, DB_NAME, DB_PASSWORD, DB_USER, ...rest } = val;
+
+      return {
+        ...rest,
+        DATABASE_URL: `mysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}`,
+      };
+    });
+  },
   experimental__runtimeEnv: process.env,
   emptyStringAsUndefined: true,
 });

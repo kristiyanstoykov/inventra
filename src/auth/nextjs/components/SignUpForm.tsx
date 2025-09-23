@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { signUpSchema } from '../schemas';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 export function SignUpForm() {
   const [error, setError] = useState<string>();
@@ -89,7 +90,16 @@ export function SignUpForm() {
           )}
         />
         <div className="flex gap-4 justify-end">
-          <Button type="submit">Sign Up</Button>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingSpinner />
+                Signing up...
+              </span>
+            ) : (
+              'Sign Up'
+            )}
+          </Button>
         </div>
       </form>
     </Form>

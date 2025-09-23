@@ -1,5 +1,7 @@
 'use client';
 
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Form,
   FormControl,
@@ -8,104 +10,128 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useState, useTransition } from 'react';
-import { attributeSchema } from './schema';
-import { useRouter } from 'next/navigation';
+import { LoadingSwap } from '@/components/LoadingSwap';
 import { toast } from 'sonner';
-import { createAttributeAction } from '@/app/admin/products/attributes/actions';
+import { attributeSchema } from '@/lib/schema/attributes';
+import { createAttributeAction, updateAttributeAction } from '@/lib/actions/attributes';
+import { useRouter } from 'next/navigation';
 
-export function AttributeForm() {
-  const [error, setError] = useState<string>();
-  const [isPending, startTransition] = useTransition();
+type AttributeType = {
+  id: number;
+  name: string;
+  value: number;
+  unit: string;
+};
+
+export function AttributeForm({
+  attribute,
+}: {
+  attribute: Pick<AttributeType, 'id' | 'name' | 'value' | 'unit'>;
+}) {
   const router = useRouter();
 
-  const form = useForm<z.infer<typeof attributeSchema>>({
-    defaultValues: {
+  const form = useForm({
+    resolver: zodResolver(attributeSchema),
+    defaultValues: attribute ?? {
       name: '',
-      value: '',
+      value: null,
       unit: '',
     },
   });
 
-  async function onSubmit(values: z.infer<typeof attributeSchema>) {
-    setError(undefined);
-    startTransition(async () => {
-      try {
-        const parsedValues = attributeSchema.safeParse(values);
+  async function onSubmit(data: z.infer<typeof attributeSchema>) {
+    try {
+      const action = attribute
+        ? updateAttributeAction.bind(null, attribute.id)
+        : createAttributeAction;
 
-        if (!parsedValues.success) {
-          throw new Error('Invalid input. Please check the form fields.');
-        }
+      const res = await action(data);
 
-        const result = await createAttributeAction(values);
-        if (result?.error) {
-          throw new Error(result.error);
-        }
-
-        form.reset();
-        router.refresh();
-        toast.success('Attribute added successfully');
-      } catch (err: any) {
-        setError(err.message || 'An unexpected error occurred.');
-        toast.error(
-          'There was an error adding the category: ' + (err.message || 'Unexpected error.')
-        );
+      if (res.error) {
+        throw new Error(res.message || 'An error occurred while processing.');
       }
-    });
+
+      if (!attribute) {
+        form.reset();
+      }
+
+      router.refresh();
+      toast.success('Attribute added successfully');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
+      toast.error(
+        'There was an error adding the attribute: ' + (err.message || 'Unexpected error.')
+      );
+    }
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {error && <p className="text-destructive">{error}</p>}
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 @container">
         <FormField
           name="name"
+          control={form.control}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Name</FormLabel>
               <FormControl>
-                <Input {...field} disabled={isPending} />
+                <Input {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <div className="flex gap-4">
-          <FormField
-            name="value"
-            render={({ field }) => (
-              <FormItem className="flex-1">
-                <FormLabel>Value</FormLabel>
-                <FormControl>
-                  <Input {...field} disabled={isPending} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            name="unit"
-            render={({ field }) => (
-              <FormItem className="flex-1">
-                <FormLabel>Unit</FormLabel>
-                <FormControl>
-                  <Input {...field} disabled={isPending} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+
+        <div className="col-span-full md:col-span-1">
+          <div className="grid grid-cols-2 gap-2">
+            {/* Value */}
+            <FormField
+              name="value"
+              control={form.control}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Value</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="number"
+                      value={field.value ?? ''}
+                      onChange={(e) =>
+                        field.onChange(
+                          isNaN(e.target.valueAsNumber) ? null : e.target.valueAsNumber
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              name="unit"
+              control={form.control}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Unit</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
-        <div className="flex gap-4">
-          <Button type="submit" disabled={isPending}>
-            {isPending ? 'Adding...' : 'Add attribute'}
-          </Button>
-        </div>
+        <Button disabled={form.formState.isSubmitting} type="submit" className="w-full">
+          <LoadingSwap isLoading={form.formState.isSubmitting}>
+            {attribute ? 'Update Attribute' : 'Add Attribute'}
+          </LoadingSwap>
+        </Button>
       </form>
     </Form>
   );

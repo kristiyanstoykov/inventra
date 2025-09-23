@@ -1,13 +1,17 @@
 import { eq } from 'drizzle-orm';
-import { db } from '@/drizzle/db';
-import { SessionTable } from '@/drizzle/schema';
-import { userRoles } from '@/drizzle/schema';
+import { db } from '@/db/drizzle/db';
+import { SessionTable } from '@/db/drizzle/schema';
+import { userRoles } from '@/db/drizzle/schema';
 import { z } from 'zod';
 import crypto from 'crypto';
 
-const SESSION_EXPIRATION_SECONDS = 60 * 60 * 24 * 7;
+/**
+ * Session expiration duration: 240 minutes (4 hours).
+ */
+const SESSION_EXPIRATION_SECONDS = 60 * 60 * 4;
 const COOKIE_SESSION_KEY = 'session-id';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const sessionSchema = z.object({
   id: z.number(),
   role: z.enum(userRoles),

@@ -1,7 +1,8 @@
 import { LogOutButton } from '@/auth/nextjs/components/LogOutButton';
-import { getCurrentUser } from '@/drizzle/queries/currentUser';
 import { SignInForm } from '@/auth/nextjs/components/SignInForm';
 import { SignUpForm } from '@/auth/nextjs/components/SignUpForm';
+import { getCurrentUser } from '@/auth/nextjs/currentUser';
+import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -11,51 +12,81 @@ import {
   CardDescription,
   CardFooter,
 } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AppError } from '@/lib/appError';
+import { Metadata } from 'next';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: 'Welcome to Inventra',
+  description: 'Inventra the simplest, yet modern inventory management system',
+};
 
 export default async function HomePage() {
   const fullUser = await getCurrentUser({ withFullUser: true });
-
-  return (
-    <div className="container mx-auto p-4 w-[var(--content-max-width-xl)]">
-      {fullUser == null ? (
-        <div className="flex flex-col md:flex-row gap-4 justify-center items-stretch">
-          <Card className="w-full md:w-1/2 flex flex-col">
+  if (fullUser instanceof AppError) {
+    return (
+      <>
+        <Header />
+        <div className="flex items-center justify-center p-4 pt-10">
+          <Card className="mt-4">
             <CardHeader>
-              <CardTitle>Sign In</CardTitle>
+              <CardTitle>User: Some error happened</CardTitle>
             </CardHeader>
-            <CardContent className="flex-grow">
-              <SignInForm />
-            </CardContent>
-          </Card>
-          <Card className="w-full md:w-1/2 flex flex-col">
-            <CardHeader>
-              <CardTitle>Sign Up</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-grow">
-              <SignUpForm />
-            </CardContent>
           </Card>
         </div>
-      ) : (
-        <Card className="max-w-[500px] mt-4">
-          <CardHeader>
-            <CardTitle>
-              User: {fullUser.firstName} {fullUser.lastName}
-            </CardTitle>
-            <CardDescription>Role: {fullUser.role}</CardDescription>
-          </CardHeader>
-          <CardFooter className="flex gap-4">
-            <Button asChild variant="outline">
-              <Link href="/private">Private Page</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/admin">Admin Page</Link>
-            </Button>
-            <LogOutButton />
-          </CardFooter>
-        </Card>
-      )}
-    </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Header />
+      <div className="flex items-center justify-center p-4 pt-10">
+        {fullUser == null ? (
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <CardTitle>Welcome</CardTitle>
+              <CardDescription>Please sign in or create an account</CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <Tabs defaultValue="signin" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="signin">Log In</TabsTrigger>
+                  <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="signin" className="mt-4">
+                  <SignInForm />
+                </TabsContent>
+
+                <TabsContent value="signup" className="mt-4">
+                  <SignUpForm />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle>
+                User: {fullUser.firstName} {fullUser.lastName}
+              </CardTitle>
+              <CardDescription>Role: {fullUser.role}</CardDescription>
+            </CardHeader>
+            <CardFooter className="flex gap-4">
+              <Link href="/private">
+                <Button variant="outline">Private Page</Button>
+              </Link>
+              <Link href="/admin">
+                <Button variant="outline">Admin Page</Button>
+              </Link>
+              <LogOutButton />
+            </CardFooter>
+          </Card>
+        )}
+      </div>
+    </>
   );
 }

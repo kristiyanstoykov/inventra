@@ -1,0 +1,1 @@
+ALTER TABLE `order_items` ADD `delivery_price` decimal(10,2);

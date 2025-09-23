@@ -1,0 +1,527 @@
+import { db } from '@/db/drizzle/db';
+import { UserTable, UserRoleTable, RoleTable } from '@/db/drizzle/schema';
+import { eq, and, gte, lt, or, like, sql, desc, asc, inArray } from 'drizzle-orm';
+import { AppError } from '@/lib/appError';
+import { logger } from '@/lib/logger';
+import { empty } from '@/lib/empty';
+import { hashPassword, generateSalt } from '@/auth/core/passwordHasher';
+import {
+  addRoleToUser,
+  deleteUserRoleIdByUserId,
+  getUserRoleIdByUserId,
+  updateUserRole,
+} from './roles';
+import { startOfMonth, subMonths, addMonths, format } from 'date-fns';
+
+const columnMap = {
+  id: UserTable.id,
+  email: UserTable.email,
+  firstName: UserTable.firstName,
+  lastName: UserTable.lastName,
+  createdAt: UserTable.createdAt,
+  companyName: UserTable.companyName,
+  bulstat: UserTable.bulstat,
+  vatNumber: UserTable.vatNumber,
+} as const;
+
+type SortableUsersColumn = keyof typeof columnMap;
+
+export const columns = [
+  { key: 'id', label: 'ID', sortable: true, searchable: true },
+  { key: 'email', label: 'Email', sortable: true, searchable: true },
+  { key: 'firstName', label: 'First Name', sortable: true, searchable: true },
+  { key: 'lastName', label: 'Last Name', sortable: true, searchable: true },
+  { key: 'companyName', label: 'Company', sortable: true, searchable: true },
+  { key: 'bulstat', label: 'Bulstat', sortable: true, searchable: true },
+  { key: 'vatNumber', label: 'VAT Number', sortable: true, searchable: true },
+  { key: 'phone', label: 'Phone', sortable: true, searchable: true },
+  { key: 'address', label: 'Address', sortable: true, searchable: true },
+  { key: 'roles', label: 'Roles', sortable: false, searchable: false },
+  { key: 'createdAt', label: 'Created At', sortable: true, searchable: false },
+  { key: 'actions', label: 'Actions', sortable: false, searchable: false },
+];
+
+export type userRoleType = {
+  id: number;
+  name: string;
+};
+
+export type paginatedUserType = {
+  id: number;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  companyName: string | null;
+  bulstat: string | null;
+  vatNumber: string | null;
+  phone: string | null;
+  address: string | null;
+  createdAt: Date;
+  roles: userRoleType[];
+};
+
+// Get all products with optional sorting and pagination
+export async function getAllUsers(
+  page: number = 1,
+  pageSize: number = 10,
+  sortKey: SortableUsersColumn | null = null,
+  sortDir: 'asc' | 'desc' = 'asc'
+) {
+  try {
+    const offset = (page - 1) * pageSize;
+
+    const query = db.select().from(UserTable).limit(pageSize).offset(offset);
+
+    if (sortKey) {
+      const column = columnMap[sortKey];
+      query.orderBy(sortDir === 'asc' ? asc(column) : desc(column));
+    }
+
+    const results = await query;
+    return results;
+  } catch (error) {
+    logger.logError(error, 'Repository: getAllProducts');
+    return new AppError('Failed to fetch products');
+  }
+}
+
+// Create a new user
+export async function createUser(userData: {
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  isCompany?: boolean | false;
+  companyName?: string | null;
+  bulstat?: string | null;
+  vatNumber?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  password: string;
+  roleId?: number;
+}) {
+  try {
+    if (!userData.roleId || null == userData.roleId || isNaN(userData.roleId)) {
+      throw new Error('Invalid role ID provided');
+    }
+
+    const salt = generateSalt();
+    const passwordHash = await hashPassword(userData.password, salt);
+
+    const [user] = await db
+      .insert(UserTable)
+      .values({
+        email: userData.email,
+        firstName: userData.firstName ?? null,
+        lastName: userData.lastName ?? null,
+        isCompany: userData.isCompany ?? false,
+        companyName: userData.companyName ?? null,
+        bulstat: userData.bulstat ?? null,
+        vatNumber: userData.vatNumber ?? null,
+        phone: userData.phone ?? null,
+        address: userData.address ?? null,
+        password: passwordHash,
+        salt: salt,
+      })
+      .$returningId();
+
+    await addRoleToUser(user.id, userData.roleId);
+
+    return user.id;
+  } catch (error) {
+    logger.logError(error, 'Repository: createUser');
+    return new AppError('Failed to create user', 'CREATE_FAILED');
+  }
+}
+
+// Update an existing user
+export async function updateUser(
+  id: number,
+  userData: {
+    email?: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    companyName?: string | null;
+    bulstat?: string | null;
+    vatNumber?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    password?: string;
+    roleId: number;
+  }
+) {
+  try {
+    // Check if the user exists
+    const existingUser = await db.select().from(UserTable).where(eq(UserTable.id, id)).limit(1);
+    if (existingUser.length === 0) {
+      return new AppError(`No user found with ID: ${id}`, 'NOT_FOUND');
+    }
+
+    const updateData: Record<string, unknown> = {};
+
+    if (userData.email !== undefined) updateData.email = userData.email;
+    if (userData.firstName !== undefined)
+      updateData.firstName = userData.firstName === '' ? null : userData.firstName;
+    if (userData.lastName !== undefined)
+      updateData.lastName = userData.lastName === '' ? null : userData.lastName;
+    if (userData.companyName !== undefined)
+      updateData.companyName = userData.companyName === '' ? null : userData.companyName;
+    if (userData.bulstat !== undefined)
+      updateData.bulstat = userData.bulstat === '' ? null : userData.bulstat;
+    if (userData.vatNumber !== undefined)
+      updateData.vatNumber = userData.vatNumber === '' ? null : userData.vatNumber;
+    if (userData.phone !== undefined)
+      updateData.phone = userData.phone === '' ? null : userData.phone;
+    if (userData.address !== undefined)
+      updateData.address = userData.address === '' ? null : userData.address;
+
+    if (userData.password !== undefined && userData.password !== null && userData.password !== '') {
+      const salt = generateSalt();
+      const passwordHash = await hashPassword(userData.password, salt);
+      updateData.password = passwordHash;
+      updateData.salt = salt;
+    }
+
+    updateData.updatedAt = sql`CURRENT_TIMESTAMP`;
+
+    if (Object.keys(updateData).length === 0) {
+      return new AppError('No fields to update', 'NO_UPDATE_FIELDS');
+    }
+    await db.update(UserTable).set(updateData).where(eq(UserTable.id, id));
+    await updateUserRole(id, userData.roleId);
+
+    return true;
+  } catch (error) {
+    logger.logError(error, 'Repository: updateUser');
+    const message = error instanceof Error ? error.message : 'Failed to update user';
+    return new AppError(message, 'UPDATE_FAILED');
+  }
+}
+
+// Delete a user
+export async function deleteUser(id: number) {
+  try {
+    // Check if the user exists before attempting to delete
+    const existingUser = await db.select().from(UserTable).where(eq(UserTable.id, id)).limit(1);
+
+    if (existingUser.length === 0) {
+      throw new Error(`No user found with ID: ${id}`);
+    }
+
+    await deleteUserRoleIdByUserId(id);
+
+    // Perform the delete operation
+    const result = await db.delete(UserTable).where(eq(UserTable.id, id));
+
+    if (empty(result)) {
+      throw new Error(`Failed to delete user with ID: ${id}`);
+    }
+
+    return {
+      success: true,
+      message: `Successfully deleted user #${id} ${existingUser[0].firstName} ${existingUser[0].lastName}`,
+    };
+  } catch (error: unknown) {
+    logger.logError(error, 'Repository: deleteUser');
+    return new AppError(
+      error instanceof Error ? error.message : `Failed to delete user with ID: ${id}`,
+      'DELETE_FAILED'
+    );
+  }
+}
+
+// Get a product by ID
+export async function getUserById(id: number) {
+  try {
+    const result = await db
+      .select({
+        id: UserTable.id,
+        email: UserTable.email,
+        firstName: UserTable.firstName,
+        lastName: UserTable.lastName,
+        isCompany: UserTable.isCompany,
+        companyName: UserTable.companyName,
+        bulstat: UserTable.bulstat,
+        vatNumber: UserTable.vatNumber,
+        phone: UserTable.phone,
+        address: UserTable.address,
+        createdAt: UserTable.createdAt,
+        updatedAt: UserTable.updatedAt,
+      })
+      .from(UserTable)
+      .where(eq(UserTable.id, id))
+      .limit(1);
+
+    if (!result || result.length === 0) {
+      return new AppError(`No user found with ID: ${id}`);
+    }
+
+    const baseUser = result[0];
+    const userRoleId = await getUserRoleIdByUserId(result[0].id);
+
+    const roles = await db
+      .select({
+        roleName: RoleTable.name,
+      })
+      .from(UserRoleTable)
+      .innerJoin(RoleTable, eq(UserRoleTable.roleId, RoleTable.id))
+      .where(eq(UserRoleTable.userId, baseUser.id));
+
+    const roleNames = Array.from(new Set(roles.map((r) => r.roleName)));
+
+    const user = {
+      ...baseUser,
+      ...(!(userRoleId instanceof AppError) && { roleId: userRoleId }),
+      role: roleNames,
+    };
+
+    return user;
+  } catch (error) {
+    logger.logError(error, 'Repository: getProductById');
+    return new AppError(`Failed to fetch product with ID: ${id}`);
+  }
+}
+
+export async function getPaginatedUsers(
+  page: number = 1,
+  pageSize: number = 10,
+  sortKey?: string,
+  sortDir: 'asc' | 'desc' = 'asc',
+  search?: string
+) {
+  const validSortKey = (
+    sortKey && sortKey in columnMap ? sortKey : null
+  ) as SortableUsersColumn | null;
+
+  const usersOrError = await getAllUsersWithRoles(page, pageSize, validSortKey, sortDir, search);
+  if (usersOrError instanceof AppError) {
+    return usersOrError;
+  }
+
+  try {
+    const baseCountQuery = db.select({ count: sql<number>`COUNT(*)` }).from(UserTable);
+
+    if (!empty(search)) {
+      const loweredSearch = `%${search.toLowerCase()}%`;
+      const searchableKeys = columns
+        .filter((col) => col.searchable)
+        .map((col) => col.key)
+        .filter((key): key is SortableUsersColumn => key in columnMap);
+
+      baseCountQuery.where(
+        or(...searchableKeys.map((key) => like(sql`LOWER(${columnMap[key]})`, loweredSearch)))
+      );
+    }
+
+    const [{ count }] = await baseCountQuery;
+
+    return {
+      data: usersOrError,
+      total: count,
+      page,
+      pageSize,
+      totalPages: Math.ceil(count / pageSize),
+    };
+  } catch (error) {
+    logger.logError(error, 'Repository: getPaginatedUsers');
+    return new AppError('Failed to fetch paginated users', 'FETCH_FAILED');
+  }
+}
+
+export async function getAllUsersWithRoles(
+  page: number = 1,
+  pageSize: number = 10,
+  sortKey: SortableUsersColumn | null = null,
+  sortDir: 'asc' | 'desc' = 'asc',
+  search?: string
+) {
+  try {
+    const offset = (page - 1) * pageSize;
+    const query = db.select().from(UserTable).limit(pageSize).offset(offset);
+
+    if (search) {
+      const loweredSearch = `%${search.toLowerCase()}%`;
+      const searchableKeys = columns
+        .filter((col) => col.searchable)
+        .map((col) => col.key)
+        .filter((key): key is SortableUsersColumn => key in columnMap);
+
+      if (searchableKeys.length > 0) {
+        query.where(
+          or(...searchableKeys.map((key) => like(sql`LOWER(${columnMap[key]})`, loweredSearch)))
+        );
+      }
+    }
+
+    if (sortKey) {
+      const column = columnMap[sortKey];
+      query.orderBy(sortDir === 'asc' ? asc(column) : desc(column));
+    }
+
+    const users = await query;
+    const userIds = users.map((u) => u.id);
+
+    let userRoles: {
+      userId: number;
+      roleId: number;
+      roleName: string;
+    }[] = [];
+
+    if (userIds.length > 0) {
+      userRoles = await db
+        .select({
+          userId: UserRoleTable.userId,
+          roleId: RoleTable.id,
+          roleName: RoleTable.name,
+        })
+        .from(UserRoleTable)
+        .innerJoin(RoleTable, eq(UserRoleTable.roleId, RoleTable.id))
+        .where(inArray(UserRoleTable.userId, userIds));
+    }
+
+    const rolesByUserId = userRoles.reduce((acc, curr) => {
+      if (!acc[curr.userId]) acc[curr.userId] = [];
+      acc[curr.userId].push({ id: curr.roleId, name: curr.roleName });
+      return acc;
+    }, {} as Record<number, { id: number; name: string }[]>);
+
+    return users.map((user) => ({
+      ...user,
+      roles: rolesByUserId[user.id] || [],
+    }));
+  } catch (error) {
+    logger.logError(error, 'Repository: getAllUsersWithRoles');
+    return new AppError('Failed to fetch users with roles');
+  }
+}
+
+export async function getUsersByName(
+  name: string
+): Promise<{ id: number; name: string }[] | AppError> {
+  try {
+    const loweredName = `%${name.toLowerCase()}%`;
+    const users = await db
+      .select({
+        id: UserTable.id,
+        firstName: UserTable.firstName,
+        lastName: UserTable.lastName,
+        isCompany: UserTable.isCompany,
+        companyName: UserTable.companyName,
+      })
+      .from(UserTable)
+      .where(
+        or(
+          like(sql`LOWER(${UserTable.firstName})`, loweredName),
+          like(sql`LOWER(${UserTable.lastName})`, loweredName),
+          like(sql`LOWER(${UserTable.companyName})`, loweredName)
+        )
+      );
+
+    return users.map((user) => ({
+      id: user.id,
+      name:
+        user.isCompany && user.companyName
+          ? user.companyName
+          : `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
+    }));
+  } catch (error) {
+    logger.logError(error, 'Repository: getUsersByName');
+    return new AppError('Failed to fetch users by name');
+  }
+}
+
+export async function getUserByEmailAuth(email: string) {
+  const loweredEmail = email.toLowerCase().trim();
+
+  const result = await db
+    .select({
+      id: UserTable.id,
+      email: UserTable.email,
+      password: UserTable.password,
+      salt: UserTable.salt,
+    })
+    .from(UserTable)
+    .where(eq(sql`LOWER(${UserTable.email})`, loweredEmail))
+    .limit(1);
+
+  if (!result || result.length === 0) {
+    return null;
+  }
+
+  const baseUser = result[0];
+
+  const roles = await db
+    .select({
+      roleName: RoleTable.name,
+    })
+    .from(UserRoleTable)
+    .innerJoin(RoleTable, eq(UserRoleTable.roleId, RoleTable.id))
+    .where(eq(UserRoleTable.userId, baseUser.id));
+
+  const roleNames = Array.from(new Set(roles.map((r) => r.roleName)));
+
+  return {
+    ...baseUser,
+    role: roleNames,
+  };
+}
+
+type MonthlyClientsPoint = { monthKey: string; month: string; count: number };
+
+export async function getMonthlyNewClientsLast6(): Promise<{
+  data: MonthlyClientsPoint[];
+  thisMonth: number; // new clients this month
+  trendPct: number; // vs previous month
+}> {
+  const start = subMonths(startOfMonth(new Date()), 5);
+  const end = startOfMonth(addMonths(new Date(), 1));
+
+  // Fetch users that have role 'client' in the window
+  const rows = await db
+    .select({
+      userId: UserTable.id,
+      createdAt: UserTable.createdAt,
+    })
+    .from(UserTable)
+    .innerJoin(UserRoleTable, eq(UserRoleTable.userId, UserTable.id))
+    .innerJoin(RoleTable, eq(RoleTable.id, UserRoleTable.roleId))
+    .where(
+      or(
+        eq(RoleTable.name, 'client'),
+        gte(UserTable.createdAt, start),
+        lt(UserTable.createdAt, end)
+      )
+    );
+
+  // Buckets for last 6 months + current
+  const buckets = new Map<string, MonthlyClientsPoint>();
+  for (let d = new Date(start); d < end; d = addMonths(d, 1)) {
+    const key = format(d, 'yyyy-MM');
+    buckets.set(key, { monthKey: key, month: format(d, 'LLL'), count: 0 });
+  }
+
+  // Aggregate
+  const seen = new Set<number>(); // optional per-user dedupe per month if needed
+  for (const r of rows) {
+    const key = format(r.createdAt!, 'yyyy-MM');
+    const b = buckets.get(key);
+    if (!b) continue;
+
+    // If a user might appear multiple times due to multiple role rows in the same month:
+    const dedupeKey = Number(`${r.userId}${key.replace('-', '')}`);
+    if (!seen.has(dedupeKey)) {
+      b.count += 1;
+      seen.add(dedupeKey);
+    }
+  }
+
+  const data = Array.from(buckets.values());
+  const thisMonth = data[data.length - 1]?.count ?? 0;
+  const prevMonth = data[data.length - 2]?.count ?? 0;
+  const trendPct = prevMonth ? ((thisMonth - prevMonth) / prevMonth) * 100 : 0;
+
+  return {
+    data,
+    thisMonth,
+    trendPct: Number(trendPct.toFixed(2)),
+  };
+}

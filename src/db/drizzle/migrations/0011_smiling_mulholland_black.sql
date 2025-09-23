@@ -1,0 +1,1 @@
+ALTER TABLE `attributes` MODIFY COLUMN `value` decimal(12,2) NOT NULL;

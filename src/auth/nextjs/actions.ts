@@ -3,29 +3,32 @@
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { signInSchema, signUpSchema } from './schemas';
-import { db } from '@/drizzle/db';
-import { UserTable } from '@/drizzle/schema';
+import { db } from '@/db/drizzle/db';
+import { UserTable } from '@/db/drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { comparePasswords, generateSalt, hashPassword } from '../core/passwordHasher';
 import { cookies } from 'next/headers';
 import { createUserSession, removeUserFromSession } from '../core/session';
 import { empty } from '@/lib/empty';
 import { getClientInfo } from '@/lib/getClientInfo';
+import { AppError } from '@/lib/appError';
+import { getUserByEmailAuth } from '@/db/drizzle/queries/users';
 
-export async function signIn(unsafeData: z.infer<typeof signInSchema>) {
+export async function signIn(unsafeData: z.infer<typeof signInSchema>): Promise<true | AppError> {
   const { success, data } = signInSchema.safeParse(unsafeData);
 
   const { ip, userAgent } = await getClientInfo();
 
-  if (!success) return 'Unable to log you in';
+  if (!success) return new AppError('Unable to log you in');
 
-  const user = await db.query.UserTable.findFirst({
-    columns: { password: true, salt: true, id: true, email: true, role: true },
-    where: eq(UserTable.email, data.email),
-  });
+  const user = await getUserByEmailAuth(data.email);
 
-  if (user == null || user.password == null || user.salt == null) {
-    return 'No account exists for this email or password is wrong.';
+  if (user == null) {
+    return new AppError('No account exists for this email or password is wrong.');
+  }
+
+  if (user.password == null || user.salt == null) {
+    return new AppError('No account exists for this email or password is wrong.');
   }
 
   const isCorrectPassword = await comparePasswords({
@@ -34,16 +37,24 @@ export async function signIn(unsafeData: z.infer<typeof signInSchema>) {
     salt: user.salt,
   });
 
-  if (!isCorrectPassword) return 'Unable to log you in';
+  if (!isCorrectPassword) return new AppError('Unable to log you in');
+
+  // Derive a single session role: default to "user", upgrade to "admin" if present.
+  type Role = 'admin' | 'user' | 'customer';
+  const isAdmin = Array.isArray(user.role)
+    ? (user.role as Role[]).includes('admin')
+    : user.role === 'admin';
+
+  const sessionRole: 'admin' | 'user' = isAdmin ? 'admin' : 'user';
 
   const sessionUser = {
     id: user.id,
-    role: user.role,
+    role: sessionRole,
   };
 
   await createUserSession(sessionUser, await cookies(), ip, userAgent);
 
-  redirect('/');
+  return true;
 }
 
 export async function signUp(unsafeData: z.infer<typeof signUpSchema>) {
