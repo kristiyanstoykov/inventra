@@ -24,7 +24,7 @@ export default async function OrdersPage({ searchParams }: { searchParams: Searc
   return (
     <Suspense
       fallback={
-        <div className="m-4">
+        <div className="m-4 grid grid-cols-1 gap-4">
           <Heading size={'h3'} as={'h1'} className="mb-4">
             Orders
           </Heading>
@@ -62,7 +62,7 @@ async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
   const { data, total, page, pageSize, totalPages } = result;
 
   return (
-    <div className="m-4">
+    <div className="m-4 grid grid-cols-1 gap-4">
       <div className="flex">
         <Heading size={'h3'} as={'h1'} className="mb-4 mr-4">
           Orders

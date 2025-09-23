@@ -61,7 +61,7 @@ async function SuspendedPage({ searchParams }: { searchParams: SearchParams }) {
   const { data, total, page, pageSize, totalPages } = result;
 
   return (
-    <div className="m-4">
+    <div className="m-4 grid grid-cols-1 gap-4">
       <div className="flex">
         <Heading size={'h3'} as={'h1'} className="mb-4 mr-4">
           Users
