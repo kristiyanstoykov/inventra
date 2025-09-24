@@ -5,6 +5,7 @@ import { loadImageForPdf } from './img';
 import { logger } from '../logger';
 import { AppError } from '../appError';
 import { formatDate } from 'date-fns';
+import { empty } from '../empty';
 
 const FONT_REGULAR = path.join(process.cwd(), 'assets/fonts/DejaVuSans.ttf');
 const FONT_BOLD = path.join(process.cwd(), 'assets/fonts/DejaVuSans-Bold.ttf');
@@ -96,6 +97,8 @@ export const L = {
     'Съгласно чл.6, ал 1 от Закона за счетоводството, чл.114 от ЗДДС и чл.78 от ППЗДДС печатът и подписът не са задължителни реквизити на фактурата',
 };
 
+export const EUR_RATE = 1.95583; // fixed BGN/EUR rate
+
 // ---------- Utils ----------
 function ensureFontFile(p: string) {
   if (!fs.existsSync(p)) {
@@ -112,6 +115,16 @@ function moneyBGN(n: number) {
 
 function generateHr(doc: InstanceType<typeof PDFDocument>, y: number) {
   doc.strokeColor('#aaaaaa').lineWidth(1).moveTo(50, y).lineTo(560, y).stroke();
+}
+
+function bgnToEur(n: number) {
+  const result = n / EUR_RATE;
+  return roundTo(result, 2);
+}
+
+function roundTo(num: number, decimals = 2) {
+  const factor = Math.pow(10, decimals);
+  return Math.round(num * factor) / factor;
 }
 
 // Centralized layout numbers
@@ -145,7 +158,7 @@ const layout = {
   },
 };
 
-// Measure helper: точно колко високо ще е дадено парче текст
+// Measure helper: exactly how tall will a text block be
 function height(
   doc: InstanceType<typeof PDFDocument>,
   text: string,
@@ -158,7 +171,7 @@ function height(
 function ensureRoom(
   doc: InstanceType<typeof PDFDocument>,
   nextBlockHeight: number,
-  reserveBottom = 120 // остави място за тотали/футър
+  reserveBottom = 120 // leave space for total and footer
 ) {
   const pageHeight = doc.page.height;
   const bottomLimit = pageHeight - doc.page.margins.bottom - reserveBottom;
@@ -449,11 +462,14 @@ function generateInvoiceTable(doc: InstanceType<typeof PDFDocument>, order: Orde
   // Totals
   const subtotalY = y + 6;
   doc.fontSize(8).font('R');
-  drawTotals(doc, subtotalY, [
-    ['Начин на плащане:', paymentTypeString],
-    [L.subtotalExVat, moneyBGN(totalGross - totalGross * 0.2)],
-    ['Начислен ДДС (20.00 %):', moneyBGN(totalGross * 0.2)],
-    [L.total, moneyBGN(totalGross)],
+  const totalExVat = roundTo(totalGross / 1.2, 2);
+  const vat = roundTo(totalGross - totalExVat, 2);
+
+  drawTotalsWithEur(doc, subtotalY, [
+    ['Начин на плащане:', paymentTypeString, ''],
+    [L.subtotalExVat, moneyBGN(totalExVat), ''],
+    ['Начислен ДДС (20.00 %):', moneyBGN(vat), ''],
+    [L.total, moneyBGN(totalGross), bgnToEur(roundTo(totalGross, 2)).toString()],
   ]);
 
   doc.font('R').fontSize(8);
@@ -507,6 +523,7 @@ function generateTableRow(
   cx += col.wQty + 6;
   doc.text(data.amount, cx, y, { width: col.wAmount, ...optsR });
 }
+
 function drawTotals(
   doc: InstanceType<typeof PDFDocument>,
   y: number,
@@ -534,6 +551,41 @@ function drawTotals(
     ensureRoom(doc, lh + 6, 80);
     doc.text(label, labelX, cy, { width: labelWidth, align: 'right' });
     doc.text(value, valueX, cy, { width: valueWidth, align: 'right' });
+    cy += lh + 1;
+  });
+  doc.font('R');
+  doc.fillColor('#444444');
+}
+
+function drawTotalsWithEur(
+  doc: InstanceType<typeof PDFDocument>,
+  y: number,
+  rows: Array<[label: string, value: string, valueEur: string]>
+) {
+  const rightEdge = 560; // from generateHr
+  const labelWidth = 200;
+  const valueWidth = 140;
+  const gap = 8;
+
+  let cy = y;
+  rows.forEach(([label, value, valueEur], idx) => {
+    const isTotal = idx === rows.length - 1;
+    doc.font(isTotal ? 'B' : 'R');
+    doc.fillColor(isTotal ? '#f98015' : '#444444');
+    const labelX = rightEdge - (labelWidth + valueWidth + gap);
+    const valueX = rightEdge - valueWidth;
+
+    const valueText = empty( valueEur ) ? value : `${value} / (${valueEur} EUR)`;
+
+    const lh = Math.max(
+      height(doc, label, { width: labelWidth, align: 'right' }),
+      height(doc, valueText, { width: valueWidth, align: 'right' }),
+      12
+    );
+
+    ensureRoom(doc, lh + 6, 80);
+    doc.text(label, labelX, cy, { width: labelWidth, align: 'right' });
+    doc.text(valueText, valueX, cy, { width: valueWidth, align: 'right' });
     cy += lh + 1;
   });
   doc.font('R');
