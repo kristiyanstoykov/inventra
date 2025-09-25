@@ -56,6 +56,7 @@ export function ProductForm({
       salePrice: 0,
       deliveryPrice: 0,
       quantity: 0,
+      warranty: '',
       sn: '',
       brandId: '',
       categoryIds: [],
@@ -70,12 +71,12 @@ export function ProductForm({
 
       const res = await action(data);
 
-      if (res.error) {
+      if (true === res.error) {
         throw new Error(res.message || 'An error occurred while processing.');
       }
 
-      if (product) {
-        router.push('/admin/products/edit/' + product.id);
+      if (empty(product)) {
+        router.push('/admin/products/edit/' + res.productId);
       } else {
         form.reset();
         router.refresh();
@@ -166,7 +167,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>Delivery Price</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} />
+                      <Input type="number" step="0.01" min="0" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -180,7 +181,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>Quantity</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} />
+                      <Input type="number" min="0" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -210,7 +211,7 @@ export function ProductForm({
                   <FormItem>
                     <FormLabel>Warranty (in months)</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input type="number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

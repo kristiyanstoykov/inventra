@@ -29,6 +29,9 @@ export async function handleInvoice(orderId: number, router: AppRouterInstance) 
 
     window.open(url, '_blank', 'noopener,noreferrer');
 
+    // Then reload current page
+    window.location.reload();
+
     return { ...res };
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to generate invoice';

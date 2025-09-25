@@ -9,6 +9,7 @@ import { getAllAttributesForSelect } from '@/db/drizzle/queries/attributes';
 import { ProductSkeletonForm } from '@/components/products/products-skeleton-form ';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Metadata } from 'next';
+import { getAllBrands } from '@/db/drizzle/queries/brands';
 
 export const metadata: Metadata = {
   title: 'New Product',
@@ -50,7 +51,7 @@ export default async function NewProductPage() {
 async function SuspendedPage() {
   let attributes = await getAllAttributesForSelect();
   let categories = await getAllCategories();
-  const brands: { id: number; name: string }[] = [];
+  const brands = await getAllBrands();;
 
   if (attributes instanceof AppError) {
     attributes = [];

@@ -9,6 +9,7 @@ import {
 import { AppError } from '@/lib/appError';
 import { ProductSchema } from '../schema/products';
 import z from 'zod';
+import { logger } from '../logger';
 
 export async function createProductAction(unsafeData: z.infer<typeof ProductSchema>) {
   const data = ProductSchema.safeParse(unsafeData);
@@ -30,9 +31,11 @@ export async function createProductAction(unsafeData: z.infer<typeof ProductSche
   const result = await createProduct(data.data);
 
   if (result instanceof AppError) {
+    logger.logError(result, 'createProductAction');
     return {
       error: true,
       message: result.toString(),
+      productId: null,
     };
   }
 
@@ -41,6 +44,7 @@ export async function createProductAction(unsafeData: z.infer<typeof ProductSche
     message: result?.errorMessage
       ? result.errorMessage
       : `Successfully created product "${data.data.name}"`,
+    productId: result.product_id,
   };
 }
 
@@ -79,7 +83,7 @@ export async function updateProductAction(id: number, unsafeData: z.infer<typeof
 
   return {
     error: false,
-    message: 'Successfully updated category',
+    message: 'Successfully updated product',
   };
 }
 

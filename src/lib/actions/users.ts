@@ -6,11 +6,17 @@ import { userSchema } from '../schema/users';
 import {
   createUser,
   deleteUser,
+  getPaginatedUsers,
+  getUserByBulstat,
+  getUserByEmailAuth,
   getUserById,
+  getUserByPhone,
+  getUserByVATNumber,
   getUsersByName,
   updateUser,
 } from '@/db/drizzle/queries/users';
 import { generateRandomPassword } from '@/auth/core/passwordHasher';
+import { empty } from '../empty';
 
 export async function createUserAction(unsafeData: z.infer<typeof userSchema>) {
   const data = userSchema.safeParse(unsafeData);
@@ -28,6 +34,46 @@ export async function createUserAction(unsafeData: z.infer<typeof userSchema>) {
   }
 
   const password = generateRandomPassword();
+
+  const existingUserByEmail = await getUserByEmailAuth(data.data.email);
+  if ( ! empty(existingUserByEmail) ) {
+    return {
+      error: true,
+      message: `There is an existing user with email "${data.data.email}"`,
+      userId: existingUserByEmail.id,
+    };
+  }
+
+  const existingUserByPhone = await getUserByPhone(data.data.phone);
+  if ( ! empty(existingUserByPhone) ) {
+    return {
+      error: true,
+      message: `There is an existing user with phone "${data.data.phone}"`,
+      userId: existingUserByPhone.id,
+    };
+  }
+
+  if ( ! empty(data.data.bulstat) ) {
+    const existingUserByBulstat = await getUserByBulstat(data.data.bulstat);
+    if ( ! empty(existingUserByBulstat) ) {
+      return {
+        error: true,
+        message: `There is an existing user with bulstat "${data.data.bulstat}"`,
+        userId: existingUserByBulstat.id,
+      };
+    }
+  }
+
+  if ( ! empty(data.data.vatNumber) ) {
+    const existingUserByVATNumber = await getUserByVATNumber(data.data.vatNumber);
+    if ( ! empty(existingUserByVATNumber) ) {
+      return {
+        error: true,
+        message: `There is an existing user with vat number "${data.data.vatNumber}"`,
+        userId: existingUserByVATNumber.id,
+      };
+    }
+  }
 
   const result = await createUser({
     email: data.data.email,
@@ -106,6 +152,20 @@ export async function getUsersByNameAction(name: string) {
   return users.map((user) => ({
     id: user.id,
     name: `${user.name}`,
+  }));
+}
+
+export async function getUsersBySearch( search: string ){
+
+  const users = await getPaginatedUsers(undefined, undefined, undefined, undefined, search);
+
+  if (users instanceof AppError) {
+    return [];
+  }
+
+  return users.data.map((user) => ({
+    id: user.id,
+    name: `${user.firstName} ${user.lastName}`.trim(),
   }));
 }
 

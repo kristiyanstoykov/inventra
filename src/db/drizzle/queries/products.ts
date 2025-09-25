@@ -230,8 +230,33 @@ export async function createProduct(data: z.infer<typeof ProductSchema>) {
       salePrice: data.salePrice ? data.salePrice.toString() : null,
       deliveryPrice: data.deliveryPrice.toString(),
       quantity: data.quantity.toString(),
+      warranty: data.warranty,
       brandId: typeof data.brandId === 'number' && data.brandId > 0 ? data.brandId : null,
     };
+
+    if (!empty( product_data.sku )) {
+      const existingSku = await db
+        .select()
+        .from(ProductTable)
+        .where(eq(ProductTable.sku, product_data.sku))
+        .limit(1);
+
+      if (!empty(existingSku)) {
+        throw new AppError(`A product with SKU: ${product_data.sku} already exists`, 'DUPLICATE_SKU');
+      }
+    }
+
+    if (!empty(product_data.sn)) {
+      const existingSn = await db
+        .select()
+        .from(ProductTable)
+        .where(eq(ProductTable.sn, product_data.sn))
+        .limit(1);
+
+      if (!empty(existingSn)) {
+        throw new AppError(`A product with SN: ${product_data.sn} already exists`, 'DUPLICATE_SN');
+      }
+    }
 
     const [result] = await db.insert(ProductTable).values(product_data).$returningId();
 
@@ -284,6 +309,7 @@ export async function createProduct(data: z.infer<typeof ProductSchema>) {
       errorMessage: errorMessages.length ? errorMessages.join(' ') : null,
     };
   } catch (error: unknown) {
+    console.log(error);
     logger.logError(error, 'Repository: createProduct');
     return new AppError(error instanceof Error ? error.message : 'Failed to create product');
   }

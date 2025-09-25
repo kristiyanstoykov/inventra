@@ -380,15 +380,25 @@ export async function createOrder(data: z.infer<typeof OrderSchema>) {
             throw new AppError('Invalid client object payload', 'VALIDATION_ERROR');
           }
 
-          // Try to find existing client by unique email
+          // Try to find existing client by unique email, phone, bulstat, or vatNumber
           const [existing] = await tx
-            .select({ id: UserTable.id })
-            .from(UserTable)
-            .where(eq(UserTable.email, email))
-            .limit(1);
+          .select({ id: UserTable.id })
+          .from(UserTable)
+          .where(
+            or(
+            eq(UserTable.email, email),
+            eq(UserTable.phone, phone),
+            bulstat ? eq(UserTable.bulstat, bulstat) : sql`FALSE`,
+            vatNumber ? eq(UserTable.vatNumber, vatNumber) : sql`FALSE`
+            )
+          )
+          .limit(1);
 
           if (existing) {
-            resolvedClientId = existing.id;
+            throw new AppError(
+              'A user with the same email, phone, bulstat, or VAT number already exists.',
+              'USER_ALREADY_EXISTS'
+            );
           } else {
             const salt = generateSalt();
             const passwordHash = await hashPassword(generateRandomPassword(), salt);

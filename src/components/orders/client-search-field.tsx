@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/command';
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { getUsersByNameAction } from '@/lib/actions/users';
+import { getUsersByNameAction, getUsersBySearch } from '@/lib/actions/users';
 import { useIsMobile } from '@/hooks/use-mobile'; // ⬅️ add
 
 type Client = { id: number; name: string };
@@ -94,7 +94,7 @@ export function ClientComboBox<TFieldValues extends FieldValues = FieldValues>({
 
       setLoading(true);
       try {
-        const data = await getUsersByNameAction(q);
+        const data = await getUsersBySearch(q);
         if (!cancelled) {
           let list = data;
           const pins: Client[] = [];

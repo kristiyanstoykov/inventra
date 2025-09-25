@@ -10,7 +10,7 @@ import { PlusIcon } from 'lucide-react';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'All Orders',
+  title: 'All Users',
 };
 
 type SearchParams = Promise<{

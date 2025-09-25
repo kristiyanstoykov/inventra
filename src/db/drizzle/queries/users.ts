@@ -465,6 +465,109 @@ export async function getUserByEmailAuth(email: string) {
   };
 }
 
+export async function getUserByPhone(phone: string) {
+
+  const result = await db
+    .select({
+      id: UserTable.id,
+      email: UserTable.email,
+      password: UserTable.password,
+      salt: UserTable.salt,
+    })
+    .from(UserTable)
+    .where(eq(sql`(${UserTable.phone})`, phone))
+    .limit(1);
+
+  if (!result || result.length === 0) {
+    return null;
+  }
+
+  const baseUser = result[0];
+
+  const roles = await db
+    .select({
+      roleName: RoleTable.name,
+    })
+    .from(UserRoleTable)
+    .innerJoin(RoleTable, eq(UserRoleTable.roleId, RoleTable.id))
+    .where(eq(UserRoleTable.userId, baseUser.id));
+
+  const roleNames = Array.from(new Set(roles.map((r) => r.roleName)));
+
+  return {
+    ...baseUser,
+    role: roleNames,
+  };
+}
+
+export async function getUserByBulstat(bulstat: string) {
+  const result = await db
+    .select({
+      id: UserTable.id,
+      email: UserTable.email,
+      password: UserTable.password,
+      salt: UserTable.salt,
+    })
+    .from(UserTable)
+    .where(eq(sql`(${UserTable.bulstat})`, bulstat))
+    .limit(1);
+
+  if (!result || result.length === 0) {
+    return null;
+  }
+
+  const baseUser = result[0];
+
+  const roles = await db
+    .select({
+      roleName: RoleTable.name,
+    })
+    .from(UserRoleTable)
+    .innerJoin(RoleTable, eq(UserRoleTable.roleId, RoleTable.id))
+    .where(eq(UserRoleTable.userId, baseUser.id));
+
+  const roleNames = Array.from(new Set(roles.map((r) => r.roleName)));
+
+  return {
+    ...baseUser,
+    role: roleNames,
+  };
+}
+
+export async function getUserByVATNumber(vatNumber: string) {
+  const result = await db
+    .select({
+      id: UserTable.id,
+      email: UserTable.email,
+      password: UserTable.password,
+      salt: UserTable.salt,
+    })
+    .from(UserTable)
+    .where(eq(sql`(${UserTable.vatNumber})`, vatNumber))
+    .limit(1);
+
+  if (!result || result.length === 0) {
+    return null;
+  }
+
+  const baseUser = result[0];
+
+  const roles = await db
+    .select({
+      roleName: RoleTable.name,
+    })
+    .from(UserRoleTable)
+    .innerJoin(RoleTable, eq(UserRoleTable.roleId, RoleTable.id))
+    .where(eq(UserRoleTable.userId, baseUser.id));
+
+  const roleNames = Array.from(new Set(roles.map((r) => r.roleName)));
+
+  return {
+    ...baseUser,
+    role: roleNames,
+  };
+}
+
 type MonthlyClientsPoint = { monthKey: string; month: string; count: number };
 
 export async function getMonthlyNewClientsLast6(): Promise<{
