@@ -14,8 +14,10 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AppError } from '@/lib/appError';
+import { empty } from '@/lib/empty';
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect, RedirectType } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: 'Welcome to Inventra',
@@ -39,6 +41,10 @@ export default async function HomePage() {
     );
   }
 
+  if ( ! empty( fullUser ) ) {
+    redirect('/admin', RedirectType.push)
+  }
+
   return (
     <>
       <Header />
@@ -47,11 +53,13 @@ export default async function HomePage() {
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
               <CardTitle>Welcome</CardTitle>
-              <CardDescription>Please sign in or create an account</CardDescription>
+              {/* <CardDescription>Please sign in or create an account</CardDescription> */}
+              <CardDescription>Please sign in</CardDescription>
             </CardHeader>
 
             <CardContent>
-              <Tabs defaultValue="signin" className="w-full">
+                  <SignInForm />
+              {/* <Tabs defaultValue="signin" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="signin">Log In</TabsTrigger>
                   <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -64,7 +72,7 @@ export default async function HomePage() {
                 <TabsContent value="signup" className="mt-4">
                   <SignUpForm />
                 </TabsContent>
-              </Tabs>
+              </Tabs> */}
             </CardContent>
           </Card>
         ) : (
